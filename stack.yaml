@@ -1,0 +1,12 @@
+resolver: lts-20.23
+
+packages:
+  - ./server
+  - ./game
+
+extra-deps:
+  - patch-0.0.8.2
+  - commutative-semigroups-0.1.0.1
+
+ghc-options:
+  "$locals": -Wall -fno-warn-type-defaults
