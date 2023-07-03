@@ -5,6 +5,9 @@ import SDL
 import Linear (V4(..))
 import Control.Monad (unless)
 
+
+
+
 main :: IO ()
 main = do
   initializeAll
