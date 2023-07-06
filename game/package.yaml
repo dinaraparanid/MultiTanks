@@ -10,11 +10,14 @@ dependencies:
   - base >= 4.7 && < 5
   - network
   - bytestring
-  - sdl2
   - linear
   - text
   - binary
   - bytestring-conversion
+  - apecs
+  - apecs-gloss
+  - apecs-physics
+  - gloss
 
 ghc-options:
   - -threaded

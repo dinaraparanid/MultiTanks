@@ -4,7 +4,6 @@ import           Data.ByteString            as Bytes
 import           Data.ByteString.Conversion as BytesConversion
 import           Network.Socket
 import           Network.Socket.ByteString  as NetworkBytes
-import           SDL                        ()
 import           Utils
 
 sendPlayerMsg :: Bytes.ByteString -> IO (Maybe Int)
