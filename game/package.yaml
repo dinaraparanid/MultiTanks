@@ -12,6 +12,9 @@ dependencies:
   - bytestring
   - sdl2
   - linear
+  - text
+  - binary
+  - bytestring-conversion
 
 ghc-options:
   - -threaded
