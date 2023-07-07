@@ -23,12 +23,13 @@ sendConnect = do
     Nothing -> return ()
     Just _  -> putStrLn "Connect is sent"
 
-sendChangePosition :: (Int, Int) -> IO ()
-sendChangePosition (x, y) = do
+sendChangePosition :: Int -> (Int, Int) -> IO ()
+sendChangePosition playerInd (x, y) = do
   let commandBytes = Bytes.pack [2]
+  let playerIndBytes = BytesConversion.toByteString' playerInd
   let xBytes = BytesConversion.toByteString' x
   let yBytes = BytesConversion.toByteString' y
-  let msg = commandBytes <> xBytes <> yBytes
+  let msg = commandBytes <> playerIndBytes <> xBytes <> yBytes
   sendRes <- sendPlayerMsg msg
   case sendRes of
     Nothing -> return ()
