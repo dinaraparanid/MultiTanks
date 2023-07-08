@@ -1,4 +1,4 @@
-module GameState where
+module PlayerState where
 
 import Data.Word (Word8)
 
@@ -22,9 +22,8 @@ data ServerRequests = AssignFirstPlayer | AssignSecondPlayer | ChangePosition Ch
 newtype GameState = GameState [Coordinates]
   deriving (Eq, Show)
 
-firstPlayerInitPosition, secondPlayerInitPosition :: (Int, Int)
-firstPlayerInitPosition = (-250, -150)
-secondPlayerInitPosition = (250, -150)
+data PlayerState = PlayerState (Maybe Word8) (Maybe Coordinates)
+  deriving (Eq, Show)
 
-initialGameState :: GameState
-initialGameState = GameState []
+initialPlayerState :: PlayerState
+initialPlayerState = PlayerState Nothing Nothing

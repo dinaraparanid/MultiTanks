@@ -19,6 +19,7 @@ executable game
   other-modules:
       Client
       Field
+      PlayerState
       Utils
       Paths_game
   hs-source-dirs:

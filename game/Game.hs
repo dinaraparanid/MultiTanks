@@ -8,14 +8,7 @@
 module Game where
 
 import Client
-import Field
-
-testClient :: IO ()
-testClient = do
-  Client.sendConnect
-  Client.sendConnect
-  Client.sendChangePosition 2 (2, 2)
-  Client.sendShoot (2, 2) (4, 4)
+import Field ()
 
 main :: IO ()
-main = Field.displayWaitPlayer2Window
+main = launchClientHandler
