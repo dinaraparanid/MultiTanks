@@ -1,7 +1,8 @@
 module GameState where
+
 import Data.Word (Word8)
 
-type Coordinates = (Double, Double)
+type Coordinates = (Int, Int)
 
 data ChangePositionData = ChangePositionData Word8 Coordinates
   deriving (Eq, Show)
@@ -9,7 +10,7 @@ data ChangePositionData = ChangePositionData Word8 Coordinates
 data PlayerSignals = Connect | ChangePosition ChangePositionData | Shoot
   deriving (Eq, Show)
 
-data GameSignals = UpdatePositions | Shot | Damage | Kill
+data GameSignals = UpdatePositions | Shot | Kill
   deriving (Eq, Show)
 
 newtype GameState = GameState [Coordinates]

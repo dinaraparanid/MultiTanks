@@ -11,6 +11,8 @@ dependencies:
   - network
   - bytestring
   - bytestring-conversion
+  - stylish-haskell
+  - hindent
 
 ghc-options:
   - -threaded

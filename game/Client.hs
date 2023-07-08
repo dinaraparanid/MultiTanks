@@ -6,22 +6,32 @@ import           Network.Socket
 import           Network.Socket.ByteString  as NetworkBytes
 import           Utils
 
-sendPlayerMsg :: Bytes.ByteString -> IO (Maybe Int)
+-- | Client/Server description:
+-- Max 2 players
+--
+-- 1)
+--    player 1 send 0 - connect
+--    player 2 send 0 - connect
+--    server sends 1 - upd move or game start
+-- 2) 
+--    player sends 2 - change move
+--    server sends 1 - upd move
+-- 3) 
+--    player sends 3 - shoot
+--    ? server sends 4 - shot traectory, game continues
+--    ? server sends 5 - kill, game finishes
+
+sendPlayerMsg :: Bytes.ByteString -> IO ()
 sendPlayerMsg bytes = do
   addrInfos <- getAddrInfo Nothing (Just "127.0.0.1") (Just "8080")
   case Utils.firstOrNothing addrInfos of
-    Nothing -> return Nothing
+    Nothing -> return ()
     Just serverAddr -> do
       sock <- socket (addrFamily serverAddr) Datagram defaultProtocol
-      res <- sendTo sock bytes $ addrAddress serverAddr
-      return $ Just res
+      sendAllTo sock bytes $ addrAddress serverAddr
 
 sendConnect :: IO ()
-sendConnect = do
-  sendRes <- sendPlayerMsg $ Bytes.pack [0]
-  case sendRes of
-    Nothing -> return ()
-    Just _  -> putStrLn "Connect is sent"
+sendConnect = sendPlayerMsg (Bytes.pack [0]) >> putStrLn "Connect is sent"
 
 sendChangePosition :: Int -> (Int, Int) -> IO ()
 sendChangePosition playerInd (x, y) = do
@@ -30,10 +40,7 @@ sendChangePosition playerInd (x, y) = do
   let xBytes = BytesConversion.toByteString' x
   let yBytes = BytesConversion.toByteString' y
   let msg = commandBytes <> playerIndBytes <> xBytes <> yBytes
-  sendRes <- sendPlayerMsg msg
-  case sendRes of
-    Nothing -> return ()
-    Just _  -> putStrLn "New position is sent"
+  sendPlayerMsg msg >> putStrLn "New position is sent"
 
 sendShoot :: (Int, Int) -> (Int, Int) -> IO ()
 sendShoot (xStart, yStart) (xEnd, yEnd) = do
@@ -43,7 +50,4 @@ sendShoot (xStart, yStart) (xEnd, yEnd) = do
   let xEndBytes = BytesConversion.toByteString' xEnd
   let yEndBytes = BytesConversion.toByteString' yEnd
   let msg = commandBytes <> xStartBytes <> yStartBytes <> xEndBytes <> yEndBytes
-  sendRes <- sendPlayerMsg msg
-  case sendRes of
-    Nothing -> return ()
-    Just _  -> putStrLn "Shoot is sent"
+  sendPlayerMsg msg >> putStrLn "Shoot is sent"

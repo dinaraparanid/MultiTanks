@@ -18,6 +18,8 @@ dependencies:
   - apecs-gloss
   - apecs-physics
   - gloss
+  - stylish-haskell
+  - hindent
 
 ghc-options:
   - -threaded
