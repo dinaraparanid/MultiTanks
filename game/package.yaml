@@ -20,6 +20,7 @@ dependencies:
   - gloss
   - stylish-haskell
   - hindent
+  - async
 
 ghc-options:
   - -threaded

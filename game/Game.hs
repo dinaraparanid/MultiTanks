@@ -7,8 +7,11 @@
 
 module Game where
 
+import Control.Concurrent.Async as Async
 import Client
-import Field ()
+import Field (displayWaitPlayer2Window)
 
 main :: IO ()
-main = launchClientHandler
+main = do
+    _ <- Async.concurrently launchClientHandler displayWaitPlayer2Window
+    return ()

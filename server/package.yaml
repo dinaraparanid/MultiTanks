@@ -13,6 +13,7 @@ dependencies:
   - bytestring-conversion
   - stylish-haskell
   - hindent
+  - async
 
 ghc-options:
   - -threaded

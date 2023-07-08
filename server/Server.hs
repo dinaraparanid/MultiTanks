@@ -57,14 +57,16 @@ handlePlayerRequest (GameState [player1, player2]) (Just (GameState.UpdatePositi
 handlePlayerRequest state (Just (GameState.Shoot shotData)) = Left (state, Just (GameState.Shot shotData))
 handlePlayerRequest _ _ = Right "unknown request or illegal game state pattern"
 
-sendRequest :: Socket -> SockAddr -> Maybe GameState.ServerRequests -> IO ()
-sendRequest sock addr (Just GameState.AssignFirstPlayer) = sendAssignFirstPlayer sock addr
-sendRequest sock addr (Just GameState.AssignSecondPlayer) = sendAssignSecondPlayer sock addr
-sendRequest sock addr (Just (GameState.Shot shotData)) = sendShot sock addr shotData
-sendRequest sock addr (Just (GameState.Kill playerInd)) = sendKill sock addr playerInd
-sendRequest sock addr (Just (GameState.ChangePosition (ChangePositionData player1 player2))) =
+sendRequest :: Socket -> SockAddr -> GameState -> Maybe GameState.ServerRequests -> IO ()
+sendRequest sock addr _ (Just GameState.AssignFirstPlayer) = sendAssignFirstPlayer sock addr
+sendRequest sock addr (GameState [player1, player2]) (Just GameState.AssignSecondPlayer) = do
+  sendAssignSecondPlayer sock addr
   sendChangePositions sock addr player1 player2
-sendRequest _ _ _ = return ()
+sendRequest sock addr _ (Just (GameState.Shot shotData)) = sendShot sock addr shotData
+sendRequest sock addr _ (Just (GameState.Kill playerInd)) = sendKill sock addr playerInd
+sendRequest sock addr _ (Just (GameState.ChangePosition (ChangePositionData player1 player2))) =
+  sendChangePositions sock addr player1 player2
+sendRequest _ _ _ _ = return ()
 
 sendAssignFirstPlayer :: Socket -> SockAddr -> IO ()
 sendAssignFirstPlayer sock addr = sendAllTo sock (Bytes.pack [6]) addr >> putStrLn "First player found"
@@ -108,7 +110,7 @@ runGameEventLoop sock state = do
   case handlePlayerRequest state $ parsePlayerRequest $ Bytes.unpack byteStr of
     Left (newState, request) -> do
       print newState
-      sendRequest sock addr request
+      sendRequest sock addr newState request
       runGameEventLoop sock newState
 
     Right err -> do
