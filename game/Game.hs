@@ -54,6 +54,9 @@ window = InWindow "Hello World" (640, 640) (10, 10)
 drawSampleImage :: IO ()
 drawSampleImage = display window white mBorder
 
+
+
+
 main :: IO ()
 main = do
   Client.sendConnect
