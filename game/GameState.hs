@@ -1,6 +1,6 @@
 module GameState where
 
-import Data.Word (Word8)
+import           Data.Word (Word8)
 
 type Coordinates = (Int, Int)
 
@@ -25,8 +25,13 @@ newtype GameState = GameState [Coordinates]
 data PlayerState = PlayerState (Maybe Word8) (Maybe Coordinates)
   deriving (Eq, Show)
 
+type SystemState = (GameState, PlayerState)
+
 initialPlayerState :: PlayerState
 initialPlayerState = PlayerState Nothing Nothing
 
 initialGameState :: GameState
 initialGameState = GameState []
+
+initialSystemState :: SystemState
+initialSystemState = (initialGameState, initialPlayerState)

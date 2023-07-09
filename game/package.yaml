@@ -21,6 +21,7 @@ dependencies:
   - stylish-haskell
   - hindent
   - async
+  - stm
 
 ghc-options:
   - -threaded

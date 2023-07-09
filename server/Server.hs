@@ -53,9 +53,9 @@ handlePlayerRequest
   _
   (Just (GameState.UpdatePosition (UpdatePositionData playerInd newCoords))) =
   case playerInd of
-    0 -> Left (GameState [(p1Addr, newCoords), (p2Addr, p2Coords)], Just $ GameState.ChangePosition $ ChangePositionData newCoords p2Coords)
-    1 -> Left (GameState [(p1Addr, p1Coords), (p2Addr, newCoords)], Just $ GameState.ChangePosition $ ChangePositionData p1Coords newCoords)
-    _ -> Right "unknown request pattern: expectede player in [0, 1]"
+    1 -> Left (GameState [(p1Addr, newCoords), (p2Addr, p2Coords)], Just $ GameState.ChangePosition $ ChangePositionData newCoords p2Coords)
+    2 -> Left (GameState [(p1Addr, p1Coords), (p2Addr, newCoords)], Just $ GameState.ChangePosition $ ChangePositionData p1Coords newCoords)
+    _ -> Right "unknown request pattern: expectede player in [1, 2]"
 
 handlePlayerRequest state _ (Just (GameState.Shoot shotData)) = Left (state, Just (GameState.Shot shotData))
 handlePlayerRequest _ _ _ = Right "unknown request or illegal game state pattern"
@@ -92,15 +92,10 @@ sendChangePositions :: Socket -> SockAddr -> (Int, Int) -> (Int, Int) -> IO ()
 sendChangePositions sock addr (x1, y1) (x2, y2) = do
   let commandBytes = Bytes.pack [1]
   let x1Bytes = Utils.intToByteString x1
-  print $ Bytes.unpack x1Bytes
   let y1Bytes = Utils.intToByteString y1
-  print $ Bytes.unpack y1Bytes
   let x2Bytes = Utils.intToByteString x2
-  print $ Bytes.unpack x2Bytes
   let y2Bytes = Utils.intToByteString y2
-  print $ Bytes.unpack y2Bytes
   let msg = commandBytes <> x1Bytes <> y1Bytes <> x2Bytes <> y2Bytes
-  print $ Bytes.unpack msg
   sendAllTo sock msg addr >> putStrLn "New positions are sent"
 
 sendShot :: Socket -> SockAddr -> ShotData -> IO ()
@@ -124,6 +119,7 @@ sendKill sock addr playerInd = do
 runGameEventLoop :: Socket -> GameState -> IO ()
 runGameEventLoop sock state = do
   (byteStr, addr) <- NetworkBytes.recvFrom sock 4096
+  print state
 
   case handlePlayerRequest state addr $ parsePlayerRequest $ Bytes.unpack byteStr of
     Left (newState, request) -> do

@@ -1,6 +1,7 @@
 module Client where
 
-import           Control.Monad             (forever)
+import           Control.Concurrent.Async  as Async
+import           Control.Concurrent.STM
 import           Data.ByteString           as Bytes
 import           Data.Word                 (Word8)
 import           GameState
@@ -33,33 +34,39 @@ parseServerRequest byteStr =
     _      -> Nothing
 
 handleServerRequest ::
-  PlayerState
+  SystemState
   -> Maybe GameState.ServerRequests
-  -> PlayerState
-handleServerRequest (PlayerState Nothing Nothing) (Just GameState.AssignFirstPlayer) = PlayerState (Just 1) Nothing
+  -> SystemState
+handleServerRequest (gameState, PlayerState Nothing Nothing) (Just GameState.AssignFirstPlayer) =
+  (gameState, PlayerState (Just 1) Nothing)
 handleServerRequest state (Just GameState.AssignFirstPlayer) = state
 
-handleServerRequest (PlayerState Nothing Nothing) (Just GameState.AssignSecondPlayer) = PlayerState (Just 2) Nothing
+handleServerRequest (gameState, PlayerState Nothing Nothing) (Just GameState.AssignSecondPlayer) =
+  (gameState, PlayerState (Just 2) Nothing)
 handleServerRequest state (Just GameState.AssignSecondPlayer) = state
 
-handleServerRequest (PlayerState (Just 1) _) (Just (GameState.ChangePosition (ChangePositionData p1Crds _))) =
-  PlayerState (Just 1) $ Just p1Crds
+handleServerRequest
+  (_, PlayerState (Just 1) _)
+  (Just (GameState.ChangePosition (ChangePositionData p1Crds p2Crds))) =
+  (GameState [p1Crds, p2Crds], PlayerState (Just 1) $ Just p1Crds)
 
-handleServerRequest (PlayerState (Just 2) _) (Just (GameState.ChangePosition (ChangePositionData _ p2Crds))) =
-  PlayerState (Just 2) $ Just p2Crds
+handleServerRequest
+  (_, PlayerState (Just 2) _)
+  (Just (GameState.ChangePosition (ChangePositionData p1Crds p2Crds))) =
+  (GameState [p1Crds, p2Crds], PlayerState (Just 2) $ Just p2Crds)
 
 handleServerRequest state (Just (GameState.Shot _)) = state
 
-handleServerRequest _ (Just (GameState.Kill _)) = initialPlayerState
+handleServerRequest _ (Just (GameState.Kill _)) = initialSystemState
 
 handleServerRequest state _ = state
 
-sendRequest :: Socket -> SockAddr -> Maybe GameState.PlayerRequests -> IO ()
-sendRequest sock addr (Just GameState.Connect) = sendConnect sock addr
-sendRequest sock addr (Just (GameState.Shoot (ShotData playerInd (start, end)))) = sendShoot sock addr playerInd start end
-sendRequest sock addr (Just (GameState.UpdatePosition (UpdatePositionData playerInd coords))) =
+sendRequest :: Socket -> SockAddr -> GameState.PlayerRequests -> IO ()
+sendRequest sock addr GameState.Connect = sendConnect sock addr
+sendRequest sock addr (GameState.Shoot (ShotData playerInd (start, end))) =
+  sendShoot sock addr playerInd start end
+sendRequest sock addr (GameState.UpdatePosition (UpdatePositionData playerInd coords)) =
   sendUpdatePosition sock addr playerInd coords
-sendRequest _ _ _ = return ()
 
 sendConnect :: Socket -> SockAddr -> IO ()
 sendConnect sock addr = sendAllTo sock (Bytes.pack [0]) addr >> putStrLn "Connect is sent"
@@ -84,26 +91,37 @@ sendShoot sock addr playerInd (xStart, yStart) (xEnd, yEnd) = do
   let msg = commandBytes <> playerIndBytes <> xStartBytes <> yStartBytes <> xEndBytes <> yEndBytes
   sendAllTo sock msg addr >> putStrLn "Shoot is sent"
 
-runClientEventLoop :: Socket -> PlayerState -> IO ()
-runClientEventLoop sock state = do
+launchClientEventLoop :: TChan SystemState -> Socket -> SystemState -> IO ()
+launchClientEventLoop gameEventQueue sock state = do
   response <- NetworkBytes.recvFrom sock 4096
 
   let (byteStr, _) = response
   print $ Bytes.unpack byteStr
 
   let newState = handleServerRequest state $ parseServerRequest $ Bytes.unpack byteStr
+  atomically $ writeTChan gameEventQueue newState
   print newState
 
   case newState of
-    PlayerState Nothing Nothing -> close sock -- end of game
-    _                           -> runClientEventLoop sock newState
+    (_, PlayerState Nothing Nothing) -> close sock -- end of game
+    _                                -> launchClientEventLoop gameEventQueue sock newState
 
-launchClientHandler :: IO ()
-launchClientHandler = do
+launchRequestReceiver :: TChan GameState.PlayerRequests -> Socket -> SockAddr -> IO ()
+launchRequestReceiver requestChan sock addr = do
+  request <- atomically $ readTChan requestChan
+  print request
+  sendRequest sock addr request
+  launchRequestReceiver requestChan sock addr
+
+launchClientHandler :: TChan SystemState -> TChan GameState.PlayerRequests -> IO ()
+launchClientHandler gameEventQueue requestChan = do
   addrInfos <- getAddrInfo Nothing (Just "0.0.0.0") (Just "8080")
   case Utils.firstOrNothing addrInfos of
     Nothing -> return ()
     Just serverAddr -> do
       sock <- socket (addrFamily serverAddr) Datagram defaultProtocol
-      sendConnect sock $ addrAddress serverAddr
-      forever $ runClientEventLoop sock initialPlayerState
+      let addr = addrAddress serverAddr
+      sendConnect sock addr
+      race_
+        (launchClientEventLoop gameEventQueue sock initialSystemState)
+        (launchRequestReceiver requestChan sock addr)

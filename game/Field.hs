@@ -1,26 +1,26 @@
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE OverloadedStrings     #-}
-{-# LANGUAGE ScopedTypeVariables   #-}
-{-# LANGUAGE TemplateHaskell       #-}
-{-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE DataKinds                  #-}
 {-# LANGUAGE FlexibleContexts           #-}
-{-# LANGUAGE TypeApplications           #-}
+{-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE TemplateHaskell            #-}
+{-# LANGUAGE TypeApplications           #-}
+{-# LANGUAGE TypeFamilies               #-}
 
 module Field where
 
-import Apecs
-import Apecs.Gloss
-import Apecs.Physics
-import Control.Monad       ()
+import           Apecs
+import           Apecs.Gloss
+import           Apecs.Physics
+import           Control.Monad ()
 
 makeWorld "World" [''Physics, ''Camera]
 
 ------------------------borders----------------------------
 mBorder :: Picture
-mBorder = Polygon [(310, 210),(-310, 210),(-310, -210),(310, -210)]
+mBorder = Polygon [(310, 210), (-310, 210), (-310, -210), (310, -210)]
 
 border1 :: Picture
 border1 = pictures [
@@ -52,10 +52,7 @@ border6 = Polygon [(200, -95), (200, -105), (310, -105), (310, -95)]
 -----------------------light tiles-------------------------
 tile1, tile4, tile5, tile6, tile7 :: Picture
 tile1 = Polygon [(-200, 200), (-300, 200), (-300, 0), (-200, 0)]
-tile4 = pictures [
-  Polygon [(-100, -100), (-300, -100), (-300, -200), (-100, -200)]
-  , translate (-250) (-150) $ color green $ circle 25 -- first player position hint
-  ]
+tile4 = Polygon [(-100, -100), (-300, -100), (-300, -200), (-100, -200)]
 tile5 = Polygon [(100, 100), (100, 200), (0, 200), (0, 100)]
 tile6 = Polygon [(100, 0), (-100, 0), (-100, -100), (100, -100)]
 tile7 = Polygon [(200, -100), (200, -200), (0, -200), (0, -100)]
@@ -66,10 +63,7 @@ tile2 = Polygon [(0, 0), (0, 200), (-200, 200), (-200, 0)]
 tile3 = Polygon [(-100, 0), (-300, 0), (-300, -100), (-100, -100)]
 tile8 = Polygon [(100, 0), (100, 100), (0, 100), (0, 0)]
 tile9 = Polygon [(300, 200), (100, 200), (100, 0), (300, 0)]
-tile10 = pictures [
-  Polygon [(300, 0), (300, -200), (200, -200), (200, 0)]
-  , translate 250 (-150) $ color blue $ circle 25 -- second player position hint
-  ]
+tile10 = Polygon [(300, 0), (300, -200), (200, -200), (200, 0)]
 
 darkColor :: Picture -> Picture
 darkColor = color $ light $ light black
