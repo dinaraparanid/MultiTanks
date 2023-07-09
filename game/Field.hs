@@ -13,7 +13,6 @@ module Field where
 
 import Apecs
 import Apecs.Gloss
-import Graphics.Gloss
 import Apecs.Physics
 import Control.Monad       ()
 
@@ -103,11 +102,8 @@ gameField = pictures [borderColor mBorder
                     , border5
                     , borderColor border6]
 
-waitPlayer2Window :: Picture
-waitPlayer2Window = pictures [
+waitPlayer2Field :: Picture
+waitPlayer2Field = pictures [
     gameField
     , color green $ scale 0.5 0.5 $ translate (-400) 500 $ text "Wait Player 2"
     ]
-
-displayWaitPlayer2Window :: IO ()
-displayWaitPlayer2Window = display mainWindow white waitPlayer2Window

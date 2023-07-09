@@ -1,4 +1,4 @@
-module PlayerState where
+module GameState where
 
 import Data.Word (Word8)
 
@@ -27,3 +27,6 @@ data PlayerState = PlayerState (Maybe Word8) (Maybe Coordinates)
 
 initialPlayerState :: PlayerState
 initialPlayerState = PlayerState Nothing Nothing
+
+initialGameState :: GameState
+initialGameState = GameState []

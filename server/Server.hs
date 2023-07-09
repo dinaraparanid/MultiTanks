@@ -1,28 +1,27 @@
 module Server where
 
-import Control.Monad             (forever)
-import Data.ByteString           as Bytes
-import Data.ByteString.Conversion as BytesConversion
-import Data.Word                 (Word8)
-import GameState
-import Network.Socket
-import Network.Socket.ByteString as NetworkBytes
-import Utils
+import           Control.Monad             (forever)
+import           Data.ByteString           as Bytes
+import           Data.Word                 (Word8)
+import           GameState
+import           Network.Socket
+import           Network.Socket.ByteString as NetworkBytes
+import           Utils
 
 -- | Client/Server description:
 -- Max 2 players
 --
 -- 1)
---    player 1 send 0 - connect
+--    player 1 sends 0 - connect
 --    server sends 6 - player1 found
 -- 2)
---    player 2 send 0 - connect
+--    player 2 sends 0 - connect
 --    server sends 7 - player2 found
 --    server sends 1 - set init position and start game
--- 2) 
+-- 2)
 --    player sends 2 - change move
 --    server sends 1 - upd move
--- 3) 
+-- 3)
 --    player sends 3 - shoot
 --    ? server sends 4 - shot traectory, game continues
 --    ? server sends 5 - kill, game finishes
@@ -30,43 +29,58 @@ import Utils
 parsePlayerRequest :: [Word8] -> Maybe GameState.PlayerRequests
 parsePlayerRequest byteStr =
   case firstOrNothing byteStr of
-    Just 0  -> Just GameState.Connect
-    Just 2  -> GameState.UpdatePosition <$> Utils.bytesToUpdatePosition byteStr
-    Just 3  -> GameState.Shoot <$> Utils.bytesToShotData byteStr
-    _  -> Nothing
+    Just 0 -> Just GameState.Connect
+    Just 2 -> GameState.UpdatePosition <$> Utils.bytesToUpdatePosition byteStr
+    Just 3 -> GameState.Shoot <$> Utils.bytesToShotData byteStr
+    _      -> Nothing
 
 handlePlayerRequest ::
-  GameState 
+  GameState
+  -> SockAddr
   -> Maybe GameState.PlayerRequests
   -> Either (GameState, Maybe GameState.ServerRequests) String
 
-handlePlayerRequest state Nothing = Left (state, Nothing)
+handlePlayerRequest state _ Nothing = Left (state, Nothing)
 
-handlePlayerRequest (GameState []) (Just GameState.Connect) =
-  Left (GameState [firstPlayerInitPosition], Just GameState.AssignFirstPlayer)
-handlePlayerRequest (GameState [player1]) (Just GameState.Connect) =
-  Left (GameState [player1, secondPlayerInitPosition], Just GameState.AssignSecondPlayer)
-handlePlayerRequest state (Just GameState.Connect) = Left (state, Nothing)
+handlePlayerRequest (GameState []) addr (Just GameState.Connect) =
+  Left (GameState [(addr, firstPlayerInitPosition)], Just GameState.AssignFirstPlayer)
+handlePlayerRequest (GameState [player1]) addr (Just GameState.Connect) =
+  Left (GameState [player1, (addr, secondPlayerInitPosition)], Just GameState.AssignSecondPlayer)
+handlePlayerRequest state _ (Just GameState.Connect) = Left (state, Nothing)
 
-handlePlayerRequest (GameState [player1, player2]) (Just (GameState.UpdatePosition (UpdatePositionData playerInd newCoords))) =
+handlePlayerRequest
+  (GameState [(p1Addr, p1Coords), (p2Addr, p2Coords)])
+  _
+  (Just (GameState.UpdatePosition (UpdatePositionData playerInd newCoords))) =
   case playerInd of
-    0 -> Left (GameState [newCoords, player2], Just $ GameState.ChangePosition $ ChangePositionData newCoords player2)
-    1 -> Left (GameState [player1, newCoords], Just $ GameState.ChangePosition $ ChangePositionData player1 newCoords)
+    0 -> Left (GameState [(p1Addr, newCoords), (p2Addr, p2Coords)], Just $ GameState.ChangePosition $ ChangePositionData newCoords p2Coords)
+    1 -> Left (GameState [(p1Addr, p1Coords), (p2Addr, newCoords)], Just $ GameState.ChangePosition $ ChangePositionData p1Coords newCoords)
     _ -> Right "unknown request pattern: expectede player in [0, 1]"
 
-handlePlayerRequest state (Just (GameState.Shoot shotData)) = Left (state, Just (GameState.Shot shotData))
-handlePlayerRequest _ _ = Right "unknown request or illegal game state pattern"
+handlePlayerRequest state _ (Just (GameState.Shoot shotData)) = Left (state, Just (GameState.Shot shotData))
+handlePlayerRequest _ _ _ = Right "unknown request or illegal game state pattern"
 
-sendRequest :: Socket -> SockAddr -> GameState -> Maybe GameState.ServerRequests -> IO ()
-sendRequest sock addr _ (Just GameState.AssignFirstPlayer) = sendAssignFirstPlayer sock addr
-sendRequest sock addr (GameState [player1, player2]) (Just GameState.AssignSecondPlayer) = do
-  sendAssignSecondPlayer sock addr
-  sendChangePositions sock addr player1 player2
-sendRequest sock addr _ (Just (GameState.Shot shotData)) = sendShot sock addr shotData
-sendRequest sock addr _ (Just (GameState.Kill playerInd)) = sendKill sock addr playerInd
-sendRequest sock addr _ (Just (GameState.ChangePosition (ChangePositionData player1 player2))) =
-  sendChangePositions sock addr player1 player2
-sendRequest _ _ _ _ = return ()
+sendRequest :: Socket -> GameState -> Maybe GameState.ServerRequests -> IO ()
+sendRequest sock (GameState [(addr, _)]) (Just GameState.AssignFirstPlayer) = sendAssignFirstPlayer sock addr
+
+sendRequest sock (GameState [(p1Addr, p1Coords), (p2Addr, p2Coords)]) (Just GameState.AssignSecondPlayer) = do
+  sendAssignSecondPlayer sock p2Addr
+  sendChangePositions sock p1Addr p1Coords p2Coords
+  sendChangePositions sock p2Addr p1Coords p2Coords
+
+sendRequest sock (GameState [(p1Addr, _), (p2Addr, _)]) (Just (GameState.ChangePosition (ChangePositionData p1Coords p2Coords))) = do
+  sendChangePositions sock p1Addr p1Coords p2Coords
+  sendChangePositions sock p2Addr p1Coords p2Coords
+
+sendRequest sock (GameState [(p1Addr, _), (p2Addr, _)]) (Just (GameState.Shot shotData)) = do
+  sendShot sock p1Addr shotData
+  sendShot sock p2Addr shotData
+
+sendRequest sock (GameState [(p1Addr, _), (p2Addr, _)]) (Just (GameState.Kill playerInd)) = do
+  sendKill sock p1Addr playerInd
+  sendKill sock p2Addr playerInd
+
+sendRequest _ _ _ = return ()
 
 sendAssignFirstPlayer :: Socket -> SockAddr -> IO ()
 sendAssignFirstPlayer sock addr = sendAllTo sock (Bytes.pack [6]) addr >> putStrLn "First player found"
@@ -77,21 +91,26 @@ sendAssignSecondPlayer sock addr = sendAllTo sock (Bytes.pack [7]) addr >> putSt
 sendChangePositions :: Socket -> SockAddr -> (Int, Int) -> (Int, Int) -> IO ()
 sendChangePositions sock addr (x1, y1) (x2, y2) = do
   let commandBytes = Bytes.pack [1]
-  let x1Bytes = BytesConversion.toByteString' x1
-  let y1Bytes = BytesConversion.toByteString' y1
-  let x2Bytes = BytesConversion.toByteString' x2
-  let y2Bytes = BytesConversion.toByteString' y2
-  let msg = commandBytes <> x1Bytes <> y1Bytes <> x2Bytes <> y2Bytes 
+  let x1Bytes = Utils.intToByteString x1
+  print $ Bytes.unpack x1Bytes
+  let y1Bytes = Utils.intToByteString y1
+  print $ Bytes.unpack y1Bytes
+  let x2Bytes = Utils.intToByteString x2
+  print $ Bytes.unpack x2Bytes
+  let y2Bytes = Utils.intToByteString y2
+  print $ Bytes.unpack y2Bytes
+  let msg = commandBytes <> x1Bytes <> y1Bytes <> x2Bytes <> y2Bytes
+  print $ Bytes.unpack msg
   sendAllTo sock msg addr >> putStrLn "New positions are sent"
 
 sendShot :: Socket -> SockAddr -> ShotData -> IO ()
 sendShot sock addr (ShotData playerInd ((x1, y1), (x2, y2))) = do
   let commandBytes = Bytes.pack [4]
   let playerIndBytes = Bytes.pack [playerInd]
-  let x1Bytes = BytesConversion.toByteString' x1
-  let y1Bytes = BytesConversion.toByteString' y1
-  let x2Bytes = BytesConversion.toByteString' x2
-  let y2Bytes = BytesConversion.toByteString' y2
+  let x1Bytes = Utils.intToByteString x1
+  let y1Bytes = Utils.intToByteString y1
+  let x2Bytes = Utils.intToByteString x2
+  let y2Bytes = Utils.intToByteString y2
   let msg = commandBytes <> playerIndBytes <> x1Bytes <> y1Bytes <> x2Bytes <> y2Bytes
   sendAllTo sock msg addr >> putStrLn "Player has shot, no one is killed"
 
@@ -104,13 +123,12 @@ sendKill sock addr playerInd = do
 
 runGameEventLoop :: Socket -> GameState -> IO ()
 runGameEventLoop sock state = do
-  response <- NetworkBytes.recvFrom sock 1024
-  let (byteStr, addr) = response
+  (byteStr, addr) <- NetworkBytes.recvFrom sock 4096
 
-  case handlePlayerRequest state $ parsePlayerRequest $ Bytes.unpack byteStr of
+  case handlePlayerRequest state addr $ parsePlayerRequest $ Bytes.unpack byteStr of
     Left (newState, request) -> do
       print newState
-      sendRequest sock addr newState request
+      sendRequest sock newState request
       runGameEventLoop sock newState
 
     Right err -> do

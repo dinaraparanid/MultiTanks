@@ -1,6 +1,7 @@
 module GameState where
 
 import Data.Word (Word8)
+import Network.Socket (SockAddr)
 
 type Coordinates = (Int, Int)
 
@@ -19,7 +20,7 @@ data ChangePositionData = ChangePositionData Coordinates Coordinates
 data ServerRequests = AssignFirstPlayer | AssignSecondPlayer | ChangePosition ChangePositionData | Shot ShotData | Kill Word8
   deriving (Eq, Show)
 
-newtype GameState = GameState [Coordinates]
+newtype GameState = GameState [(SockAddr, Coordinates)]
   deriving (Eq, Show)
 
 firstPlayerInitPosition, secondPlayerInitPosition :: (Int, Int)
