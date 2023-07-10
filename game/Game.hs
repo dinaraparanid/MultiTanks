@@ -169,8 +169,10 @@ handleGameEvents requestChan (EventKey (SpecialKey KeyDown) Up _ _) (gameState, 
     handleMovementEvent requestChan (gameState, PlayerState (Just playerInd) (Just GameState.LeftDir) crds) playerInd (\(x, y) -> (x + 2, y))
 
 ------------------------------------------ On Left/Right pressed ------------------------------------------
-handleGameEvents requestChan (EventKey (SpecialKey key) Up _ _) (gameState, PlayerState (Just playerInd) dir crds) =
-    handleDirectionEvent requestChan (gameState, PlayerState (Just playerInd) dir crds) playerInd $ onLeftRightEvent key
+handleGameEvents requestChan (EventKey (SpecialKey KeyRight) Up _ _) (gameState, PlayerState (Just playerInd) dir crds) =
+    handleDirectionEvent requestChan (gameState, PlayerState (Just playerInd) dir crds) playerInd $ onLeftRightEvent KeyRight
+handleGameEvents requestChan (EventKey (SpecialKey KeyLeft) Up _ _) (gameState, PlayerState (Just playerInd) dir crds) =
+    handleDirectionEvent requestChan (gameState, PlayerState (Just playerInd) dir crds) playerInd $ onLeftRightEvent KeyLeft
 
 handleGameEvents _ _ state = state
 

@@ -56,8 +56,8 @@ handlePlayerRequest
   (GameState [(p1Addr, p1Dir, p1Coords), (p2Addr, p2Dir, p2Coords)])
   _
   (Just (GameState.UpdatePosition (UpdatePositionData playerInd newCoords))) = case playerInd of
-    1 -> Left (GameState [(p1Addr, p1Dir, newCoords), (p2Addr, p1Dir, p2Coords)], Just $ GameState.ChangePosition $ ChangePositionData newCoords p2Coords)
-    2 -> Left (GameState [(p1Addr, p2Dir, p1Coords), (p2Addr, p2Dir, newCoords)], Just $ GameState.ChangePosition $ ChangePositionData p1Coords newCoords)
+    1 -> Left (GameState [(p1Addr, p1Dir, newCoords), (p2Addr, p2Dir, p2Coords)], Just $ GameState.ChangePosition $ ChangePositionData newCoords p2Coords)
+    2 -> Left (GameState [(p1Addr, p1Dir, p1Coords), (p2Addr, p2Dir, newCoords)], Just $ GameState.ChangePosition $ ChangePositionData p1Coords newCoords)
     _ -> Right "unknown update position request pattern: expectede player in [1, 2]"
 
 handlePlayerRequest
@@ -83,19 +83,19 @@ sendRequest sock (GameState [(p1Addr, p1Dir, p1Coords), (p2Addr, p2Dir, p2Coords
 
 sendRequest sock (GameState [(p1Addr, _, _), (p2Addr, _, _)]) (Just (GameState.ChangePosition (ChangePositionData p1Coords p2Coords))) = do
   sendChangePositions sock p1Addr p1Coords p2Coords
-  --sendChangePositions sock p2Addr p1Coords p2Coords
+  sendChangePositions sock p2Addr p1Coords p2Coords
 
 sendRequest sock (GameState [(p1Addr, _, _), (p2Addr, _, _)]) (Just (GameState.ChangeDirection (ChangeDirectionData p1Dir p2Dir))) = do
   sendChangeDirection sock p1Addr p1Dir p2Dir
-  --sendChangeDirection sock p2Addr p1Dir p2Dir
+  sendChangeDirection sock p2Addr p1Dir p2Dir
 
 sendRequest sock (GameState [(p1Addr, _, _), (p2Addr, _, _)]) (Just (GameState.Shot shotData)) = do
   sendShot sock p1Addr shotData
-  --sendShot sock p2Addr shotData
+  sendShot sock p2Addr shotData
 
 sendRequest sock (GameState [(p1Addr, _, _), (p2Addr, _, _)]) (Just (GameState.Kill playerInd)) = do
   sendKill sock p1Addr playerInd
-  --sendKill sock p2Addr playerInd
+  sendKill sock p2Addr playerInd
 
 sendRequest _ _ _ = return ()
 
