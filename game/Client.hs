@@ -55,28 +55,28 @@ handleServerRequest state (Just GameState.AssignSecondPlayer) = state
 handleServerRequest
   (GameState [(p1Dir, _), (p2Dir, _)], PlayerState (Just 1) _ _)
   (Just (GameState.ChangePosition (ChangePositionData p1Crds p2Crds))) =
-  (GameState [(p1Dir, Just p1Crds), (p2Dir, Just p2Crds)], PlayerState (Just 1) p1Dir $ Just p1Crds)
+    (GameState [(p1Dir, Just p1Crds), (p2Dir, Just p2Crds)], PlayerState (Just 1) p1Dir $ Just p1Crds)
 handleServerRequest
   (GameState [(p1Dir, _), (p2Dir, _)], PlayerState (Just 2) _ _)
   (Just (GameState.ChangePosition (ChangePositionData p1Crds p2Crds))) =
-  (GameState [(p1Dir, Just p1Crds), (p2Dir, Just p2Crds)], PlayerState (Just 2) p2Dir $ Just p2Crds)
+    (GameState [(p1Dir, Just p1Crds), (p2Dir, Just p2Crds)], PlayerState (Just 2) p2Dir $ Just p2Crds)
 
 handleServerRequest
   (GameState [], PlayerState (Just 1) _ _)
   (Just (GameState.ChangeDirection (ChangeDirectionData p1Dir p2Dir))) =
-  (GameState [(Just p1Dir, Nothing), (Just p2Dir, Nothing)], PlayerState (Just 1) (Just p1Dir) Nothing)
+    (GameState [(Just p1Dir, Nothing), (Just p2Dir, Nothing)], PlayerState (Just 1) (Just p1Dir) Nothing)
 handleServerRequest
   (GameState [], PlayerState (Just 2) _ _)
   (Just (GameState.ChangeDirection (ChangeDirectionData p1Dir p2Dir))) =
-  (GameState [(Just p1Dir, Nothing), (Just p2Dir, Nothing)], PlayerState (Just 2) (Just p2Dir) Nothing)
+    (GameState [(Just p1Dir, Nothing), (Just p2Dir, Nothing)], PlayerState (Just 2) (Just p2Dir) Nothing)
 handleServerRequest
   (GameState [(_, p1Crds), (_, p2Crds)], PlayerState (Just 1) _ _)
   (Just (GameState.ChangeDirection (ChangeDirectionData p1Dir p2Dir))) =
-  (GameState [(Just p1Dir, p1Crds), (Just p2Dir, p2Crds)], PlayerState (Just 1) (Just p1Dir) p1Crds)
+    (GameState [(Just p1Dir, p1Crds), (Just p2Dir, p2Crds)], PlayerState (Just 1) (Just p1Dir) p1Crds)
 handleServerRequest
   (GameState [(_, p1Crds), (_, p2Crds)], PlayerState (Just 2) _ _)
   (Just (GameState.ChangeDirection (ChangeDirectionData p1Dir p2Dir))) =
-  (GameState [(Just p1Dir, p1Crds), (Just p2Dir, p2Crds)], PlayerState (Just 2) (Just p2Dir) p2Crds)
+    (GameState [(Just p1Dir, p1Crds), (Just p2Dir, p2Crds)], PlayerState (Just 2) (Just p2Dir) p2Crds)
 
 handleServerRequest state (Just (GameState.Shot _)) = state
 

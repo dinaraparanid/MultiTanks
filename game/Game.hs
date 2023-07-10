@@ -22,15 +22,19 @@ fps :: Int
 fps = 60
 
 translatedPlayerPic :: Maybe Coordinates -> Maybe Direction -> Picture -> Picture
-translatedPlayerPic (Just (x, y)) (Just GameState.UpDir) pic = translate (fromIntegral x) (fromIntegral y) pic
-translatedPlayerPic (Just (x, y)) (Just GameState.DownDir) pic = translate (fromIntegral x) (fromIntegral y) $ rotate 180.0 pic
-translatedPlayerPic (Just (x, y)) (Just GameState.RightDir) pic = translate (fromIntegral x) (fromIntegral y) $ rotate 90.0 pic
-translatedPlayerPic (Just (x, y)) (Just GameState.LeftDir) pic = translate (fromIntegral x) (fromIntegral y) $ rotate 270.0 pic
+translatedPlayerPic (Just (x, y)) (Just GameState.UpDir) pic =
+  translate (fromIntegral x) (fromIntegral y) pic
+translatedPlayerPic (Just (x, y)) (Just GameState.DownDir) pic =
+  translate (fromIntegral x) (fromIntegral y) $ rotate 180.0 pic
+translatedPlayerPic (Just (x, y)) (Just GameState.RightDir) pic =
+  translate (fromIntegral x) (fromIntegral y) $ rotate 90.0 pic
+translatedPlayerPic (Just (x, y)) (Just GameState.LeftDir) pic =
+  translate (fromIntegral x) (fromIntegral y) $ rotate 270.0 pic
 translatedPlayerPic _ _ pic = pic
 
 renderGame :: Picture -> Picture -> SystemState -> Picture
-renderGame _ _ (GameState [], _)                       = waitPlayer2Field
-renderGame _ _ (GameState [_], _)                      = waitPlayer2Field
+renderGame _ _ (GameState [], _)                                                            = waitPlayer2Field
+renderGame _ _ (GameState [_], _)                                                           = waitPlayer2Field
 renderGame firstPlayerPic secondPlayerPic (GameState [(p1Dir, p1Crds), (p2Dir, p2Crds)], _) = pictures [
     gameField
     , translatedPlayerPic p1Crds p1Dir firstPlayerPic
@@ -48,7 +52,10 @@ wrapP1DirectionWithIO ::
   -> IO SystemState
 wrapP1DirectionWithIO requestChan newP1Dir p2Dir p1Crds p2Crds updDirRequest = do
     _ <- STM.atomically $ STM.writeTChan requestChan updDirRequest
-    return (GameState [(Just newP1Dir, Just p1Crds), (Just p2Dir, Just p2Crds)], PlayerState (Just 1) (Just newP1Dir) $ Just p1Crds)
+    return (GameState
+             [(Just newP1Dir, Just p1Crds), (Just p2Dir, Just p2Crds)]
+             , PlayerState (Just 1) (Just newP1Dir) $ Just p1Crds
+             )
 
 wrapP1MovementWithIO ::
   TChan GameState.PlayerRequests
@@ -60,7 +67,10 @@ wrapP1MovementWithIO ::
   -> IO SystemState
 wrapP1MovementWithIO requestChan p1Dir p2Dir newP1Crds p2Crds updCrdsRequest = do
     _ <- STM.atomically $ STM.writeTChan requestChan updCrdsRequest
-    return (GameState [(Just p1Dir, Just newP1Crds), (Just p2Dir, Just p2Crds)], PlayerState (Just 1) (Just p1Dir) $ Just newP1Crds)
+    return (GameState
+             [(Just p1Dir, Just newP1Crds), (Just p2Dir, Just p2Crds)]
+             , PlayerState (Just 1) (Just p1Dir) $ Just newP1Crds
+             )
 
 wrapP2DirectionWithIO ::
   TChan GameState.PlayerRequests
@@ -72,7 +82,10 @@ wrapP2DirectionWithIO ::
   -> IO SystemState
 wrapP2DirectionWithIO requestChan p1Dir newP2Dir p1Crds p2Crds updDirRequest = do
     _ <- STM.atomically $ STM.writeTChan requestChan updDirRequest
-    return (GameState [(Just p1Dir, Just p1Crds), (Just newP2Dir, Just p2Crds)], PlayerState (Just 2) (Just newP2Dir) $ Just p2Crds)
+    return (GameState
+             [(Just p1Dir, Just p1Crds), (Just newP2Dir, Just p2Crds)]
+             , PlayerState (Just 2) (Just newP2Dir) $ Just p2Crds
+             )
 
 wrapP2MovementWithIO ::
   TChan GameState.PlayerRequests
@@ -84,7 +97,10 @@ wrapP2MovementWithIO ::
   -> IO SystemState
 wrapP2MovementWithIO requestChan p1Dir p2Dir p1Crds newP2Crds updCrdsRequest = do
     _ <- STM.atomically $ STM.writeTChan requestChan updCrdsRequest
-    return (GameState [(Just p1Dir, Just p1Crds), (Just p2Dir, Just newP2Crds)], PlayerState (Just 2) (Just p2Dir) $ Just newP2Crds)
+    return (GameState
+             [(Just p1Dir, Just p1Crds), (Just p2Dir, Just newP2Crds)]
+             , PlayerState (Just 2) (Just p2Dir) $ Just newP2Crds
+             )
 
 handleDirectionEvent ::
   TChan GameState.PlayerRequests
@@ -92,7 +108,11 @@ handleDirectionEvent ::
   -> Word8
   -> (Direction -> Direction)
   -> SystemState
-handleDirectionEvent requestChan (GameState [(Just p1Dir, Just p1Crds), (Just p2Dir, Just p2Crds)], playerState) playerInd dirTransf = case playerInd of
+handleDirectionEvent
+  requestChan
+  (GameState [(Just p1Dir, Just p1Crds), (Just p2Dir, Just p2Crds)], playerState)
+  playerInd
+  dirTransf = case playerInd of
     1 -> do
         let newP1Dir = dirTransf p1Dir
         let updDirsRequest = GameState.UpdateDirection (UpdateDirectionData 1 newP1Dir)
@@ -116,7 +136,11 @@ handleMovementEvent ::
   -> Word8
   -> (Coordinates -> Coordinates)
   -> SystemState
-handleMovementEvent requestChan (GameState [(Just p1Dir, Just p1Crds), (Just p2Dir, Just p2Crds)], playerState) playerInd crdTransf = case playerInd of
+handleMovementEvent
+  requestChan
+  (GameState [(Just p1Dir, Just p1Crds), (Just p2Dir, Just p2Crds)], playerState)
+  playerInd
+  crdTransf = case playerInd of
     1 -> do
         let newP1Crds = crdTransf p1Crds
         if beyoundBorders newP1Crds then curState else do
@@ -149,30 +173,107 @@ onLeftRightEvent _ _                         = GameState.UpDir
 
 handleGameEvents :: TChan GameState.PlayerRequests -> Event -> SystemState -> SystemState
 ------------------------------------------ On Up pressed ------------------------------------------
-handleGameEvents requestChan (EventKey (SpecialKey KeyUp) Up _ _) (gameState, PlayerState (Just playerInd) (Just GameState.UpDir) crds) =
-    handleMovementEvent requestChan (gameState, PlayerState (Just playerInd) (Just GameState.UpDir) crds) playerInd (\(x, y) -> (x, y + 5))
-handleGameEvents requestChan (EventKey (SpecialKey KeyUp) Up _ _) (gameState, PlayerState (Just playerInd) (Just GameState.DownDir) crds) =
-    handleMovementEvent requestChan (gameState, PlayerState (Just playerInd) (Just GameState.DownDir) crds) playerInd (\(x, y) -> (x, y - 5))
-handleGameEvents requestChan (EventKey (SpecialKey KeyUp) Up _ _) (gameState, PlayerState (Just playerInd) (Just GameState.RightDir) crds) =
-    handleMovementEvent requestChan (gameState, PlayerState (Just playerInd) (Just GameState.RightDir) crds) playerInd (\(x, y) -> (x + 5, y))
-handleGameEvents requestChan (EventKey (SpecialKey KeyUp) Up _ _) (gameState, PlayerState (Just playerInd) (Just GameState.LeftDir) crds) =
-    handleMovementEvent requestChan (gameState, PlayerState (Just playerInd) (Just GameState.LeftDir) crds) playerInd (\(x, y) -> (x - 5, y))
+handleGameEvents
+  requestChan
+  (EventKey (SpecialKey KeyUp) Up _ _)
+  (gameState, PlayerState (Just playerInd) (Just GameState.UpDir) crds) =
+    handleMovementEvent
+    requestChan
+    (gameState, PlayerState (Just playerInd) (Just GameState.UpDir) crds)
+    playerInd
+    (\(x, y) -> (x, y + 5))
+
+handleGameEvents
+  requestChan
+  (EventKey (SpecialKey KeyUp) Up _ _)
+  (gameState, PlayerState (Just playerInd) (Just GameState.DownDir) crds) =
+    handleMovementEvent
+    requestChan
+    (gameState, PlayerState (Just playerInd) (Just GameState.DownDir) crds)
+    playerInd
+    (\(x, y) -> (x, y - 5))
+
+handleGameEvents
+  requestChan
+  (EventKey (SpecialKey KeyUp) Up _ _)
+  (gameState, PlayerState (Just playerInd) (Just GameState.RightDir) crds) =
+    handleMovementEvent
+      requestChan
+      (gameState, PlayerState (Just playerInd) (Just GameState.RightDir) crds)
+      playerInd
+      (\(x, y) -> (x + 5, y))
+
+handleGameEvents
+  requestChan
+  (EventKey (SpecialKey KeyUp) Up _ _)
+  (gameState, PlayerState (Just playerInd) (Just GameState.LeftDir) crds) =
+    handleMovementEvent
+      requestChan
+      (gameState, PlayerState (Just playerInd) (Just GameState.LeftDir) crds)
+      playerInd
+      (\(x, y) -> (x - 5, y))
 
 ------------------------------------------ On Down pressed ------------------------------------------
-handleGameEvents requestChan (EventKey (SpecialKey KeyDown) Up _ _) (gameState, PlayerState (Just playerInd) (Just GameState.UpDir) crds) =
-    handleMovementEvent requestChan (gameState, PlayerState (Just playerInd) (Just GameState.UpDir) crds) playerInd (\(x, y) -> (x, y - 2))
-handleGameEvents requestChan (EventKey (SpecialKey KeyDown) Up _ _) (gameState, PlayerState (Just playerInd) (Just GameState.DownDir) crds) =
-    handleMovementEvent requestChan (gameState, PlayerState (Just playerInd) (Just GameState.DownDir) crds) playerInd (\(x, y) -> (x, y + 2))
-handleGameEvents requestChan (EventKey (SpecialKey KeyDown) Up _ _) (gameState, PlayerState (Just playerInd) (Just GameState.RightDir) crds) =
-    handleMovementEvent requestChan (gameState, PlayerState (Just playerInd) (Just GameState.RightDir) crds) playerInd (\(x, y) -> (x - 2, y))
-handleGameEvents requestChan (EventKey (SpecialKey KeyDown) Up _ _) (gameState, PlayerState (Just playerInd) (Just GameState.LeftDir) crds) =
-    handleMovementEvent requestChan (gameState, PlayerState (Just playerInd) (Just GameState.LeftDir) crds) playerInd (\(x, y) -> (x + 2, y))
+handleGameEvents
+  requestChan
+  (EventKey (SpecialKey KeyDown) Up _ _)
+  (gameState, PlayerState (Just playerInd) (Just GameState.UpDir) crds) =
+    handleMovementEvent
+      requestChan
+      (gameState, PlayerState (Just playerInd) (Just GameState.UpDir) crds)
+      playerInd
+      (\(x, y) -> (x, y - 2))
+
+handleGameEvents
+  requestChan
+  (EventKey (SpecialKey KeyDown) Up _ _)
+  (gameState, PlayerState (Just playerInd) (Just GameState.DownDir) crds) =
+    handleMovementEvent
+      requestChan
+      (gameState, PlayerState (Just playerInd) (Just GameState.DownDir) crds)
+      playerInd
+      (\(x, y) -> (x, y + 2))
+
+handleGameEvents
+  requestChan
+  (EventKey (SpecialKey KeyDown) Up _ _)
+  (gameState, PlayerState (Just playerInd) (Just GameState.RightDir) crds) =
+    handleMovementEvent
+      requestChan
+      (gameState, PlayerState (Just playerInd) (Just GameState.RightDir) crds)
+      playerInd
+      (\(x, y) -> (x - 2, y))
+
+handleGameEvents
+  requestChan
+  (EventKey (SpecialKey KeyDown) Up _ _)
+  (gameState, PlayerState (Just playerInd) (Just GameState.LeftDir) crds) =
+    handleMovementEvent
+      requestChan
+      (gameState, PlayerState (Just playerInd) (Just GameState.LeftDir) crds)
+      playerInd
+      (\(x, y) -> (x + 2, y))
 
 ------------------------------------------ On Left/Right pressed ------------------------------------------
-handleGameEvents requestChan (EventKey (SpecialKey KeyRight) Up _ _) (gameState, PlayerState (Just playerInd) dir crds) =
-    handleDirectionEvent requestChan (gameState, PlayerState (Just playerInd) dir crds) playerInd $ onLeftRightEvent KeyRight
-handleGameEvents requestChan (EventKey (SpecialKey KeyLeft) Up _ _) (gameState, PlayerState (Just playerInd) dir crds) =
-    handleDirectionEvent requestChan (gameState, PlayerState (Just playerInd) dir crds) playerInd $ onLeftRightEvent KeyLeft
+handleGameEvents
+  requestChan
+  (EventKey (SpecialKey KeyRight) Up _ _)
+  (gameState, PlayerState (Just playerInd) dir crds) =
+    handleDirectionEvent
+      requestChan
+      (gameState, PlayerState (Just playerInd) dir crds)
+      playerInd
+      $ onLeftRightEvent KeyRight
+
+handleGameEvents
+  requestChan
+  (EventKey (SpecialKey KeyLeft) Up _ _)
+  (gameState, PlayerState (Just playerInd) dir crds) =
+    handleDirectionEvent
+      requestChan
+      (gameState, PlayerState (Just playerInd) dir crds)
+      playerInd
+      $ onLeftRightEvent KeyLeft
 
 handleGameEvents _ _ state = state
 
@@ -194,9 +295,14 @@ main :: IO ()
 main = do
     eventQueue <- STM.atomically STM.newTChan
     requestChan <- STM.atomically STM.newTChan
+
     firstPlayerTank <- loadBMP "./green_tank.bmp"
     secondPlayerTank <- loadBMP "./blue_tank.bmp"
     let firstPlayerPic = scale 0.1 0.1 firstPlayerTank
     let secondPlayerPic = scale 0.1 0.1 secondPlayerTank
-    _ <- Async.concurrently (launchClientHandler eventQueue requestChan) $ launchGame eventQueue requestChan firstPlayerPic secondPlayerPic
+
+    _ <- Async.concurrently
+      (launchClientHandler eventQueue requestChan)
+      $ launchGame eventQueue requestChan firstPlayerPic secondPlayerPic
+
     return ()
