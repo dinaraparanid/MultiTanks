@@ -4,31 +4,47 @@ import           Data.Word (Word8)
 
 type Coordinates = (Int, Int)
 
+data Direction = UpDir | DownDir | LeftDir | RightDir
+  deriving (Eq, Show)
+
 data UpdatePositionData = UpdatePositionData Word8 Coordinates
+  deriving (Eq, Show)
+
+data UpdateDirectionData = UpdateDirectionData Word8 Direction
   deriving (Eq, Show)
 
 data ShotData = ShotData Word8 (Coordinates, Coordinates)
   deriving (Eq, Show)
 
-data PlayerRequests = Connect | UpdatePosition UpdatePositionData | Shoot ShotData
+data PlayerRequests = Connect
+                    | UpdatePosition UpdatePositionData
+                    | UpdateDirection UpdateDirectionData
+                    | Shoot ShotData
   deriving (Eq, Show)
 
 data ChangePositionData = ChangePositionData Coordinates Coordinates
   deriving (Eq, Show)
 
-data ServerRequests = AssignFirstPlayer | AssignSecondPlayer | ChangePosition ChangePositionData | Shot ShotData | Kill Word8
+data ChangeDirectionData = ChangeDirectionData Direction Direction
   deriving (Eq, Show)
 
-newtype GameState = GameState [Coordinates]
+data ServerRequests = AssignFirstPlayer
+                    | AssignSecondPlayer
+                    | ChangePosition ChangePositionData
+                    | ChangeDirection ChangeDirectionData
+                    | Shot ShotData | Kill Word8
   deriving (Eq, Show)
 
-data PlayerState = PlayerState (Maybe Word8) (Maybe Coordinates)
+newtype GameState = GameState [(Maybe Direction, Maybe Coordinates)]
+  deriving (Eq, Show)
+
+data PlayerState = PlayerState (Maybe Word8) (Maybe Direction) (Maybe Coordinates)
   deriving (Eq, Show)
 
 type SystemState = (GameState, PlayerState)
 
 initialPlayerState :: PlayerState
-initialPlayerState = PlayerState Nothing Nothing
+initialPlayerState = PlayerState Nothing Nothing Nothing
 
 initialGameState :: GameState
 initialGameState = GameState []

@@ -13,13 +13,19 @@ import           Utils
 -- Max 2 players
 --
 -- 1)
---    player 1 send 0 - connect
---    player 2 send 0 - connect
---    server sends 1 - upd move or game start
+--    player 1 sends 0 - connect
+--    server sends 6 - player1 found
 -- 2)
---    player sends 2 - change move
---    server sends 1 - upd move
+--    player 2 sends 0 - connect
+--    server sends 7 - player2 found
+--    server sends 1 - set init position and start game
 -- 3)
+--    player sends 2 - upd move
+--    server sends 1 - change move
+-- 4)
+--    player sends 8 - upd direction
+--    server sends 9 - change direction
+-- 5)
 --    player sends 3 - shoot
 --    ? server sends 4 - shot traectory, game continues
 --    ? server sends 5 - kill, game finishes
@@ -30,6 +36,7 @@ parseServerRequest byteStr =
     Just 6 -> Just GameState.AssignFirstPlayer
     Just 7 -> Just GameState.AssignSecondPlayer
     Just 1 -> GameState.ChangePosition <$> Utils.bytesToChangePosition byteStr
+    Just 9 -> GameState.ChangeDirection <$> Utils.bytesToChangeDirection byteStr
     Just 4 -> GameState.Shot <$> Utils.bytesToShotData byteStr
     _      -> Nothing
 
@@ -37,23 +44,39 @@ handleServerRequest ::
   SystemState
   -> Maybe GameState.ServerRequests
   -> SystemState
-handleServerRequest (gameState, PlayerState Nothing Nothing) (Just GameState.AssignFirstPlayer) =
-  (gameState, PlayerState (Just 1) Nothing)
+handleServerRequest (gameState, PlayerState Nothing Nothing Nothing) (Just GameState.AssignFirstPlayer) =
+  (gameState, PlayerState (Just 1) Nothing Nothing)
 handleServerRequest state (Just GameState.AssignFirstPlayer) = state
 
-handleServerRequest (gameState, PlayerState Nothing Nothing) (Just GameState.AssignSecondPlayer) =
-  (gameState, PlayerState (Just 2) Nothing)
+handleServerRequest (gameState, PlayerState Nothing Nothing Nothing) (Just GameState.AssignSecondPlayer) =
+  (gameState, PlayerState (Just 2) Nothing Nothing)
 handleServerRequest state (Just GameState.AssignSecondPlayer) = state
 
 handleServerRequest
-  (_, PlayerState (Just 1) _)
+  (GameState [(p1Dir, _), (p2Dir, _)], PlayerState (Just 1) _ _)
   (Just (GameState.ChangePosition (ChangePositionData p1Crds p2Crds))) =
-  (GameState [p1Crds, p2Crds], PlayerState (Just 1) $ Just p1Crds)
+  (GameState [(p1Dir, Just p1Crds), (p2Dir, Just p2Crds)], PlayerState (Just 1) p1Dir $ Just p1Crds)
+handleServerRequest
+  (GameState [(p1Dir, _), (p2Dir, _)], PlayerState (Just 2) _ _)
+  (Just (GameState.ChangePosition (ChangePositionData p1Crds p2Crds))) =
+  (GameState [(p1Dir, Just p1Crds), (p2Dir, Just p2Crds)], PlayerState (Just 2) p2Dir $ Just p2Crds)
 
 handleServerRequest
-  (_, PlayerState (Just 2) _)
-  (Just (GameState.ChangePosition (ChangePositionData p1Crds p2Crds))) =
-  (GameState [p1Crds, p2Crds], PlayerState (Just 2) $ Just p2Crds)
+  (GameState [], PlayerState (Just 1) _ _)
+  (Just (GameState.ChangeDirection (ChangeDirectionData p1Dir p2Dir))) =
+  (GameState [(Just p1Dir, Nothing), (Just p2Dir, Nothing)], PlayerState (Just 1) (Just p1Dir) Nothing)
+handleServerRequest
+  (GameState [], PlayerState (Just 2) _ _)
+  (Just (GameState.ChangeDirection (ChangeDirectionData p1Dir p2Dir))) =
+  (GameState [(Just p1Dir, Nothing), (Just p2Dir, Nothing)], PlayerState (Just 2) (Just p2Dir) Nothing)
+handleServerRequest
+  (GameState [(_, p1Crds), (_, p2Crds)], PlayerState (Just 1) _ _)
+  (Just (GameState.ChangeDirection (ChangeDirectionData p1Dir p2Dir))) =
+  (GameState [(Just p1Dir, p1Crds), (Just p2Dir, p2Crds)], PlayerState (Just 1) (Just p1Dir) p1Crds)
+handleServerRequest
+  (GameState [(_, p1Crds), (_, p2Crds)], PlayerState (Just 2) _ _)
+  (Just (GameState.ChangeDirection (ChangeDirectionData p1Dir p2Dir))) =
+  (GameState [(Just p1Dir, p1Crds), (Just p2Dir, p2Crds)], PlayerState (Just 2) (Just p2Dir) p2Crds)
 
 handleServerRequest state (Just (GameState.Shot _)) = state
 
@@ -67,6 +90,8 @@ sendRequest sock addr (GameState.Shoot (ShotData playerInd (start, end))) =
   sendShoot sock addr playerInd start end
 sendRequest sock addr (GameState.UpdatePosition (UpdatePositionData playerInd coords)) =
   sendUpdatePosition sock addr playerInd coords
+sendRequest sock addr (GameState.UpdateDirection (UpdateDirectionData playerInd dir)) =
+  sendUpdateDirection sock addr playerInd dir
 
 sendConnect :: Socket -> SockAddr -> IO ()
 sendConnect sock addr = sendAllTo sock (Bytes.pack [0]) addr >> putStrLn "Connect is sent"
@@ -79,6 +104,14 @@ sendUpdatePosition sock addr playerInd (x, y) = do
   let yBytes = Utils.intToByteString y
   let msg = commandBytes <> playerIndBytes <> xBytes <> yBytes
   sendAllTo sock msg addr >> putStrLn "New position is sent"
+
+sendUpdateDirection :: Socket -> SockAddr -> Word8 -> Direction -> IO ()
+sendUpdateDirection sock addr playerInd dir = do
+  let commandBytes = Bytes.pack [8]
+  let playerIndBytes = Bytes.pack [playerInd]
+  let dirBytes = Bytes.pack [Utils.directionToByte dir]
+  let msg = commandBytes <> playerIndBytes <> dirBytes
+  sendAllTo sock msg addr >> putStrLn "New direction is sent"
 
 sendShoot :: Socket -> SockAddr -> Word8 -> (Int, Int) -> (Int, Int) -> IO ()
 sendShoot sock addr playerInd (xStart, yStart) (xEnd, yEnd) = do
@@ -103,8 +136,8 @@ launchClientEventLoop gameEventQueue sock state = do
   print newState
 
   case newState of
-    (_, PlayerState Nothing Nothing) -> close sock -- end of game
-    _                                -> launchClientEventLoop gameEventQueue sock newState
+    (_, PlayerState Nothing Nothing Nothing) -> close sock -- end of game
+    _                                        -> launchClientEventLoop gameEventQueue sock newState
 
 launchRequestReceiver :: TChan GameState.PlayerRequests -> Socket -> SockAddr -> IO ()
 launchRequestReceiver requestChan sock addr = do

@@ -26,6 +26,26 @@ bytesToChangePosition [_, x11, x12, x13, x14, y11, y12, y13, y14, x21, x22, x23,
   Just $ ChangePositionData (x1Coords, y1Coords) (x2Coords, y2Coords)
 bytesToChangePosition _ = Just $ ChangePositionData (0, 0) (0, 0)
 
+bytesToChangeDirection :: [Word8] -> Maybe ChangeDirectionData
+bytesToChangeDirection [_, p1DirB, p2DirB] = do
+  p1Dir <- byteToDirection p1DirB
+  p2Dir <- byteToDirection p2DirB
+  Just $ ChangeDirectionData p1Dir p2Dir
+bytesToChangeDirection _ = Nothing
+
+directionToByte :: Direction -> Word8
+directionToByte GameState.UpDir    = 0
+directionToByte GameState.DownDir  = 1
+directionToByte GameState.LeftDir  = 2
+directionToByte GameState.RightDir = 3
+
+byteToDirection :: Word8 -> Maybe Direction
+byteToDirection 0 = Just GameState.UpDir
+byteToDirection 1 = Just GameState.DownDir
+byteToDirection 2 = Just GameState.LeftDir
+byteToDirection 3 = Just GameState.RightDir
+byteToDirection _ = Nothing
+
 bytesToShotData :: [Word8] -> Maybe ShotData
 bytesToShotData [_, playerInd, x11, x12, x13, x14, y11, y12, y13, y14, x21, x22, x23, x24, y21, y22, y23, y24] = do
   x1Coords <- bytesToInt [x11, x12, x13, x14]
