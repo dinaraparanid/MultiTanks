@@ -15,24 +15,43 @@ import           Apecs
 import           Apecs.Gloss
 import           Apecs.Physics
 import           Control.Monad ()
+import           GameState     (Coordinates)
 
 makeWorld "World" [''Physics, ''Camera]
 
 ------------------------borders----------------------------
-mBorder :: Picture
-mBorder = Polygon [(310, 210), (-310, 210), (-310, -210), (310, -210)]
+
+type BorderPolygon = (Coordinates, Coordinates)
+
+inBorder :: Coordinates -> BorderPolygon -> Bool
+inBorder (x, y) ((xd, yd), (xu, yu)) = x >= xd && x <= xu && y >= yd && y <= yu
+
+mainBorder :: Picture
+mainBorder = Polygon [(310, 210), (-310, 210), (-310, -210), (310, -210)]
+
+beyoundMainBorder :: Coordinates -> Bool
+beyoundMainBorder (x, y) = x <= -310 || x >= 310 || y <= -210 || y >= 210
 
 border1 :: Picture
 border1 = pictures [
-  color (light black) $ Polygon [(-95, - 5), (-205, -5), (-205, 105), (-95, 105)]
+  color (light black) $ Polygon [(-95, -5), (-205, -5), (-205, 105), (-95, 105)]
   , color white $ Polygon [(-105, 5), (-195, 5), (-195, 95), (-105, 95)]
   ]
+
+border1Polygon :: BorderPolygon
+border1Polygon = ((-205, -5), (-95, 105))
 
 border2 :: Picture
 border2 = Polygon [(5, 0), (5, 210), (-5, 210), (-5, 0)]
 
+border2Polygon :: BorderPolygon
+border2Polygon = ((-5, 0), (5, 210))
+
 border3 :: Picture
 border3 = Polygon [(-195, -100), (-205, -100), (-205, -210), (-195, -210)]
+
+border3Polygon :: BorderPolygon
+border3Polygon = ((-205, -210), (-195, -100))
 
 border4 :: Picture
 border4 = pictures [
@@ -40,14 +59,35 @@ border4 = pictures [
   , color white $ Polygon [(-5, -105), (-5, -230), (-95, -230), (-95, -105)]
   ]
 
+border4Polygon :: BorderPolygon
+border4Polygon = ((-105, -210), (5, -95))
+
 border5 :: Picture
 border5 = pictures [
   color (light black) $ Polygon [(95, 5), (95, -105), (205, -105), (205, 5)]
   , color white $ Polygon [(105, -5), (105, -95), (195, -95), (195, -5)]
   ]
 
+border5Polygon :: BorderPolygon
+border5Polygon = ((95, -105), (205, 5))
+
 border6 :: Picture
 border6 = Polygon [(200, -95), (200, -105), (310, -105), (310, -95)]
+
+border6Polygon :: BorderPolygon
+border6Polygon = ((200, -105), (310, -95))
+
+borderPolygons :: [BorderPolygon]
+borderPolygons = [border1Polygon
+                , border2Polygon
+                , border3Polygon
+                , border4Polygon
+                , border5Polygon
+                , border6Polygon
+                ]
+
+beyoundBorders :: Coordinates -> Bool
+beyoundBorders crds = beyoundMainBorder crds || any (\brd -> crds `inBorder` brd) borderPolygons
 
 -----------------------light tiles-------------------------
 tile1, tile4, tile5, tile6, tile7 :: Picture
@@ -78,7 +118,7 @@ mainWindow :: Display
 mainWindow = InWindow "MultiTanks" (640, 640) (500, 250)
 
 gameField :: Picture
-gameField = pictures [borderColor mBorder
+gameField = pictures [borderColor mainBorder
                     , darkColor tile2
                     , darkColor tile3
                     , darkColor tile8

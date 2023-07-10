@@ -21,21 +21,15 @@ import           System.IO.Unsafe         (unsafePerformIO)
 fps :: Int
 fps = 60
 
-firstPlayerPic :: Picture
-firstPlayerPic = color green $ circle 25
-
-secondPlayerPic :: Picture
-secondPlayerPic = color blue $ circle 25
-
-renderGame :: SystemState -> Picture
-renderGame (GameState [], _)                       = waitPlayer2Field
-renderGame (GameState [_], _)                      = waitPlayer2Field
-renderGame (GameState [(p1X, p1Y), (p2X, p2Y)], _) = pictures [
+renderGame :: Picture -> Picture -> SystemState -> Picture
+renderGame _ _ (GameState [], _)                       = waitPlayer2Field
+renderGame _ _ (GameState [_], _)                      = waitPlayer2Field
+renderGame firstPlayerPic secondPlayerPic (GameState [(p1X, p1Y), (p2X, p2Y)], _) = pictures [
     gameField
     , translate (fromIntegral p1X) (fromIntegral p1Y) firstPlayerPic
     , translate (fromIntegral p2X) (fromIntegral p2Y) secondPlayerPic
     ]
-renderGame _ = blank
+renderGame _ _ _ = blank
 
 wrapP1MovementWithIO ::
   TChan GameState.PlayerRequests
@@ -66,15 +60,20 @@ handleMovementEvent ::
 handleMovementEvent requestChan (GameState [p1Crds, p2Crds], playerState) playerInd crdTransf = case playerInd of
     1 -> do
         let newP1Crds = crdTransf p1Crds
-        let updCrdsRequest = GameState.UpdatePosition (UpdatePositionData 1 newP1Crds)
-        unsafePerformIO $ wrapP1MovementWithIO requestChan newP1Crds p2Crds updCrdsRequest
+        if beyoundBorders newP1Crds then curState else do
+          let updCrdsRequest = GameState.UpdatePosition (UpdatePositionData 1 newP1Crds)
+          unsafePerformIO $ wrapP1MovementWithIO requestChan newP1Crds p2Crds updCrdsRequest
 
     2 -> do
         let newP2Crds = crdTransf p2Crds
-        let updCrdsRequest = GameState.UpdatePosition (UpdatePositionData 2 newP2Crds)
-        unsafePerformIO $ wrapP2MovementWithIO requestChan p1Crds newP2Crds updCrdsRequest
+        if beyoundBorders newP2Crds then curState else do
+          let updCrdsRequest = GameState.UpdatePosition (UpdatePositionData 2 newP2Crds)
+          unsafePerformIO $ wrapP2MovementWithIO requestChan p1Crds newP2Crds updCrdsRequest
 
-    _ -> (GameState [p1Crds, p2Crds], playerState)
+    _ -> curState
+
+    where
+        curState = (GameState [p1Crds, p2Crds], playerState)
 
 handleMovementEvent _ state _ _ = state
 
@@ -106,15 +105,15 @@ handleGameEvents requestChan (EventKey (SpecialKey KeyLeft) _ _ _) (gameState, P
 handleGameEvents _ _ state                                            = state
 
 updateGame :: TChan SystemState -> Float -> SystemState -> SystemState
-updateGame eventQueue _ state = -- реализация этой штуки слишком ленива, чтобы догадаться использовать обычный readTChan
+updateGame eventQueue _ state = -- реализация этой штуки под капотом слишком ленива, чтобы использовать обычный readTChan
     Maybe.fromMaybe state $ unsafePerformIO $ STM.atomically $ STM.tryReadTChan eventQueue
 
-launchGame :: TChan SystemState -> TChan GameState.PlayerRequests -> IO ()
-launchGame eventQueue requestChan = Gloss.play
+launchGame :: TChan SystemState -> TChan GameState.PlayerRequests -> Picture -> Picture -> IO ()
+launchGame eventQueue requestChan firstPlayerPic secondPlayerPic = Gloss.play
   mainWindow
   white
   fps initialSystemState
-  renderGame
+  (renderGame firstPlayerPic secondPlayerPic)
   (handleGameEvents requestChan)
   (updateGame eventQueue)
 
@@ -122,5 +121,9 @@ main :: IO ()
 main = do
     eventQueue <- STM.atomically STM.newTChan
     requestChan <- STM.atomically STM.newTChan
-    _ <- Async.concurrently (launchClientHandler eventQueue requestChan) $ launchGame eventQueue requestChan
+    firstPlayerTank <- loadBMP "./green_tank.bmp"
+    secondPlayerTank <- loadBMP "./blue_tank.bmp"
+    let firstPlayerPic = scale 0.1 0.1 firstPlayerTank
+    let secondPlayerPic = scale 0.1 0.1 secondPlayerTank
+    _ <- Async.concurrently (launchClientHandler eventQueue requestChan) $ launchGame eventQueue requestChan firstPlayerPic secondPlayerPic
     return ()
