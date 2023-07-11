@@ -53,3 +53,7 @@ bytesToShotData [_, playerInd, x1, x2, x3, x4, y1, y2, y3, y4, dirB] = do
   dir <- byteToDirection dirB
   Just $ ShotData playerInd (xCoords, yCoords) dir
 bytesToShotData _ = Nothing
+
+bytesToKill :: [Word8] -> Maybe Word8
+bytesToKill [_, playerInd] = Just playerInd
+bytesToKill _              = Nothing

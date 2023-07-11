@@ -115,13 +115,14 @@ handlePlayerRequest state _ (Just (GameState.UpdateDirection (UpdateDirectionDat
 
 ----------------------------------------- Shoot and kill -----------------------------------------
 handlePlayerRequest
-  (GameState [(p1Addr, p1Dir, (p1X, p1Y), p1Shot), (p2Addr, p2Dir, p2Crds, _)]) _
+  (GameState [(p1Addr, p1Dir, (p1X, p1Y), p1Shot), (p2Addr, p2Dir, p2Crds, p2Shot)]) _
   (Just (GameState.Shoot (ShotData 2 (x, y) dir))) =
-    if abs (p1X - x) < 10 && abs (p1Y - y) < 10 then gameOverState else shotState
+    if abs (p1X - x) < 20 && abs (p1Y - y) < 20 then gameOverState else shotState
   where
-    gameOverState = Left (initialGameState, Just $ GameState.Kill 1)
-    crds = (x, y)
     p1Crds = (p1X, p1Y)
+    curState = GameState [(p1Addr, p1Dir, p1Crds, p1Shot), (p2Addr, p2Dir, p2Crds, p2Shot)]
+    gameOverState = Left (curState, Just $ GameState.Kill 1)
+    crds = (x, y)
     newP2Shot = ShotData 2 crds dir
     shotRequest = Just (GameState.Shot newP2Shot)
     shotState = Left (GameState
@@ -130,13 +131,20 @@ handlePlayerRequest
                        )
 
 handlePlayerRequest
-  (GameState [(p1Addr, p1Dir, p1Crds, _), (p2Addr, p2Dir, p2Crds, p2Shot)]) _
-  (Just (GameState.Shoot (ShotData 1 crds dir))) = if p2Crds == crds then gameOverState else shotState
+  (GameState [(p1Addr, p1Dir, p1Crds, p1Shot), (p2Addr, p2Dir, (p2X, p2Y), p2Shot)]) _
+  (Just (GameState.Shoot (ShotData 1 (x, y) dir))) =
+    if abs (p2X - x) < 20 && abs (p2Y - y) < 20 then gameOverState else shotState
   where
-    gameOverState = Left (initialGameState, Just $ GameState.Kill 2)
+    p2Crds = (p2X, p2Y)
+    curState = GameState [(p1Addr, p1Dir, p1Crds, p1Shot), (p2Addr, p2Dir, p2Crds, p2Shot)]
+    gameOverState = Left (curState, Just $ GameState.Kill 2)
+    crds = (x, y)
     newP1Shot = ShotData 1 crds dir
     shotRequest = Just (GameState.Shot newP1Shot)
-    shotState = Left (GameState [(p1Addr, p1Dir, p1Crds, Just newP1Shot), (p2Addr, p2Dir, p2Crds, p2Shot)], shotRequest)
+    shotState = Left (GameState
+                       [(p1Addr, p1Dir, p1Crds, Just newP1Shot), (p2Addr, p2Dir, p2Crds, p2Shot)]
+                       , shotRequest
+                       )
 
 handlePlayerRequest state _ _ = Left (state, Nothing)
 
@@ -233,8 +241,12 @@ runGameEventLoop sock state = do
   case handlePlayerRequest state addr $ parsePlayerRequest $ Bytes.unpack byteStr of
     Left (newState, request) -> do
       print newState
+      print request
       sendRequest sock newState request
-      runGameEventLoop sock newState
+
+      case request of
+        Just (GameState.Kill _) -> runGameEventLoop sock initialGameState
+        _                       -> runGameEventLoop sock newState
 
     Right err -> do
       putStrLn err

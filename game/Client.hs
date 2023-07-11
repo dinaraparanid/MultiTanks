@@ -38,6 +38,7 @@ parseServerRequest byteStr =
     Just 1 -> GameState.ChangePosition <$> Utils.bytesToChangePosition byteStr
     Just 9 -> GameState.ChangeDirection <$> Utils.bytesToChangeDirection byteStr
     Just 4 -> GameState.Shot <$> Utils.bytesToShotData byteStr
+    Just 5 -> GameState.Kill <$> Utils.bytesToKill byteStr
     _      -> Nothing
 
 handleServerRequest ::
