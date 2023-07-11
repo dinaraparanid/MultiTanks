@@ -105,18 +105,18 @@ handleServerRequest
 
 --------------------------------- Shot ---------------------------------
 handleServerRequest
-  (GameState [(p1Dir, p1Crds, _), (p2Dir, p2Crds, p2Shot)], PlayerState (Just 1) _ _)
-  (Just (GameState.Shot (ShotData 1 crds dir))) =
+  (GameState [(p1Dir, p1Crds, p1Shot), (p2Dir, p2Crds, _)], PlayerState (Just 1) _ _)
+  (Just (GameState.Shot (ShotData 2 crds dir))) =
     (GameState
-      [(p1Dir, p1Crds, Just (ShotData 1 crds dir)), (p2Dir, p2Crds, p2Shot)]
+      [(p1Dir, p1Crds, p1Shot), (p2Dir, p2Crds, Just (ShotData 2 crds dir))]
       , PlayerState (Just 1) p1Dir p1Crds
       )
 
 handleServerRequest
-  (GameState [(p1Dir, p1Crds, p1Shot), (p2Dir, p2Crds, _)], PlayerState (Just 2) _ _)
-  (Just (GameState.Shot (ShotData 2 crds dir))) =
+  (GameState [(p1Dir, p1Crds, _), (p2Dir, p2Crds, p2Shot)], PlayerState (Just 2) _ _)
+  (Just (GameState.Shot (ShotData 1 crds dir))) =
     (GameState
-      [(p1Dir, p1Crds, p1Shot), (p2Dir, p2Crds, Just (ShotData 1 crds dir))]
+      [(p1Dir, p1Crds, Just (ShotData 1 crds dir)), (p2Dir, p2Crds, p2Shot)]
       , PlayerState (Just 2) p1Dir p1Crds
       )
 

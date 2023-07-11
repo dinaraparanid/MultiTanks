@@ -115,20 +115,28 @@ handlePlayerRequest state _ (Just (GameState.UpdateDirection (UpdateDirectionDat
 
 ----------------------------------------- Shoot and kill -----------------------------------------
 handlePlayerRequest
-  (GameState [(p1Addr, p1Dir, p1Crds, p1Shot), p2Data]) _
-  (Just (GameState.Shoot (ShotData 2 crds dir))) = if p1Crds == crds then gameOverState else curState
+  (GameState [(p1Addr, p1Dir, (p1X, p1Y), p1Shot), (p2Addr, p2Dir, p2Crds, _)]) _
+  (Just (GameState.Shoot (ShotData 2 (x, y) dir))) =
+    if abs (p1X - x) < 10 && abs (p1Y - y) < 10 then gameOverState else shotState
   where
     gameOverState = Left (initialGameState, Just $ GameState.Kill 1)
-    shotRequest = Just (GameState.Shot (ShotData 2 crds dir))
-    curState = Left (GameState [(p1Addr, p1Dir, p1Crds, p1Shot), p2Data], shotRequest)
+    crds = (x, y)
+    p1Crds = (p1X, p1Y)
+    newP2Shot = ShotData 2 crds dir
+    shotRequest = Just (GameState.Shot newP2Shot)
+    shotState = Left (GameState
+                       [(p1Addr, p1Dir, p1Crds, p1Shot), (p2Addr, p2Dir, p2Crds, Just newP2Shot)]
+                       , shotRequest
+                       )
 
 handlePlayerRequest
-  (GameState [p1Data, (p2Addr, p2Dir, p2Crds, p2Shot)]) _
-  (Just (GameState.Shoot (ShotData 1 crds dir))) = if p2Crds == crds then gameOverState else curState
+  (GameState [(p1Addr, p1Dir, p1Crds, _), (p2Addr, p2Dir, p2Crds, p2Shot)]) _
+  (Just (GameState.Shoot (ShotData 1 crds dir))) = if p2Crds == crds then gameOverState else shotState
   where
     gameOverState = Left (initialGameState, Just $ GameState.Kill 2)
-    shotRequest = Just (GameState.Shot (ShotData 1 crds dir))
-    curState = Left (GameState [p1Data, (p2Addr, p2Dir, p2Crds, p2Shot)], shotRequest)
+    newP1Shot = ShotData 1 crds dir
+    shotRequest = Just (GameState.Shot newP1Shot)
+    shotState = Left (GameState [(p1Addr, p1Dir, p1Crds, Just newP1Shot), (p2Addr, p2Dir, p2Crds, p2Shot)], shotRequest)
 
 handlePlayerRequest state _ _ = Left (state, Nothing)
 
@@ -162,9 +170,10 @@ sendRequest
 sendRequest
   sock
   (GameState [(p1Addr, _, _, _), (p2Addr, _, _, _)])
-  (Just (GameState.Shot shotData)) = do
-    sendShot sock p1Addr shotData
-    sendShot sock p2Addr shotData
+  (Just (GameState.Shot (ShotData playerInd crds dir))) = case playerInd of
+    1 -> sendShot sock p2Addr $ ShotData 1 crds dir
+    2 -> sendShot sock p1Addr $ ShotData 2 crds dir
+    _ -> return ()
 
 sendRequest
   sock
