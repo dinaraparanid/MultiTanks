@@ -32,14 +32,37 @@ translatedPlayerPic (Just (x, y)) (Just GameState.LeftDir) pic =
   translate (fromIntegral x) (fromIntegral y) $ rotate 270.0 pic
 translatedPlayerPic _ _ pic = pic
 
+translatedShotPic :: Maybe ShotData -> Picture
+translatedShotPic (Just (ShotData 1 (x, y) _)) =
+  translate
+    (fromIntegral x)
+    (fromIntegral y)
+    $ color green
+    $ thickCircle 1.0 5.0
+
+translatedShotPic (Just (ShotData 2 (x, y) _)) =
+  translate
+    (fromIntegral x)
+    (fromIntegral y)
+    $ color blue
+    $ thickCircle 1.0 5.0
+
+translatedShotPic _ = blank
+
 renderGame :: Picture -> Picture -> SystemState -> Picture
-renderGame _ _ (GameState [], _)                                                            = waitPlayer2Field
-renderGame _ _ (GameState [_], _)                                                           = waitPlayer2Field
-renderGame firstPlayerPic secondPlayerPic (GameState [(p1Dir, p1Crds), (p2Dir, p2Crds)], _) = pictures [
-    gameField
-    , translatedPlayerPic p1Crds p1Dir firstPlayerPic
-    , translatedPlayerPic p2Crds p2Dir secondPlayerPic
-    ]
+renderGame _ _ (GameState [], _)                                   = waitPlayer2Field
+renderGame _ _ (GameState [_], _)                                  = waitPlayer2Field
+renderGame
+  firstPlayerPic
+  secondPlayerPic
+  (GameState [(p1Dir, p1Crds, p1Shot), (p2Dir, p2Crds, p2Shot)], _) =
+    pictures [
+      gameField
+      , translatedPlayerPic p1Crds p1Dir firstPlayerPic
+      , translatedPlayerPic p2Crds p2Dir secondPlayerPic
+      , translatedShotPic p1Shot
+      , translatedShotPic p2Shot
+      ]
 renderGame _ _ _ = blank
 
 wrapP1DirectionWithIO ::
@@ -48,13 +71,15 @@ wrapP1DirectionWithIO ::
   -> Direction
   -> Coordinates
   -> Coordinates
+  -> Maybe ShotData
+  -> Maybe ShotData
   -> PlayerRequests
   -> IO SystemState
-wrapP1DirectionWithIO requestChan newP1Dir p2Dir p1Crds p2Crds updDirRequest = do
+wrapP1DirectionWithIO requestChan newP1Dir p2Dir p1Crds p2Crds p1Shot p2Shot updDirRequest = do
     _ <- STM.atomically $ STM.writeTChan requestChan updDirRequest
     return (GameState
-             [(Just newP1Dir, Just p1Crds), (Just p2Dir, Just p2Crds)]
-             , PlayerState (Just 1) (Just newP1Dir) $ Just p1Crds
+             [(Just newP1Dir, Just p1Crds, p1Shot), (Just p2Dir, Just p2Crds, p2Shot)]
+             , PlayerState (Just 1) (Just newP1Dir) (Just p1Crds)
              )
 
 wrapP1MovementWithIO ::
@@ -63,13 +88,32 @@ wrapP1MovementWithIO ::
   -> Direction
   -> Coordinates
   -> Coordinates
+  -> Maybe ShotData
+  -> Maybe ShotData
   -> PlayerRequests
   -> IO SystemState
-wrapP1MovementWithIO requestChan p1Dir p2Dir newP1Crds p2Crds updCrdsRequest = do
+wrapP1MovementWithIO requestChan p1Dir p2Dir newP1Crds p2Crds p1Shot p2Shot updCrdsRequest = do
     _ <- STM.atomically $ STM.writeTChan requestChan updCrdsRequest
     return (GameState
-             [(Just p1Dir, Just newP1Crds), (Just p2Dir, Just p2Crds)]
-             , PlayerState (Just 1) (Just p1Dir) $ Just newP1Crds
+             [(Just p1Dir, Just newP1Crds, p1Shot), (Just p2Dir, Just p2Crds, p2Shot)]
+             , PlayerState (Just 1) (Just p1Dir) (Just newP1Crds)
+             )
+
+wrapP1ShotWithIO ::
+  TChan GameState.PlayerRequests
+  -> Direction
+  -> Direction
+  -> Coordinates
+  -> Coordinates
+  -> ShotData
+  -> Maybe ShotData
+  -> PlayerRequests
+  -> IO SystemState
+wrapP1ShotWithIO requestChan p1Dir p2Dir p1Crds p2Crds p1Shot p2Shot shootRequest = do
+    _ <- STM.atomically $ STM.writeTChan requestChan shootRequest
+    return (GameState
+             [(Just p1Dir, Just p1Crds, Just p1Shot), (Just p2Dir, Just p2Crds, p2Shot)]
+             , PlayerState (Just 1) (Just p1Dir) (Just p1Crds)
              )
 
 wrapP2DirectionWithIO ::
@@ -78,13 +122,15 @@ wrapP2DirectionWithIO ::
   -> Direction
   -> Coordinates
   -> Coordinates
+  -> Maybe ShotData
+  -> Maybe ShotData
   -> PlayerRequests
   -> IO SystemState
-wrapP2DirectionWithIO requestChan p1Dir newP2Dir p1Crds p2Crds updDirRequest = do
+wrapP2DirectionWithIO requestChan p1Dir newP2Dir p1Crds p2Crds p1Shot p2Shot updDirRequest = do
     _ <- STM.atomically $ STM.writeTChan requestChan updDirRequest
     return (GameState
-             [(Just p1Dir, Just p1Crds), (Just newP2Dir, Just p2Crds)]
-             , PlayerState (Just 2) (Just newP2Dir) $ Just p2Crds
+             [(Just p1Dir, Just p1Crds, p1Shot), (Just newP2Dir, Just p2Crds, p2Shot)]
+             , PlayerState (Just 2) (Just newP2Dir) (Just p2Crds)
              )
 
 wrapP2MovementWithIO ::
@@ -93,13 +139,32 @@ wrapP2MovementWithIO ::
   -> Direction
   -> Coordinates
   -> Coordinates
+  -> Maybe ShotData
+  -> Maybe ShotData
   -> PlayerRequests
   -> IO SystemState
-wrapP2MovementWithIO requestChan p1Dir p2Dir p1Crds newP2Crds updCrdsRequest = do
+wrapP2MovementWithIO requestChan p1Dir p2Dir p1Crds newP2Crds p1Shot p2Shot updCrdsRequest = do
     _ <- STM.atomically $ STM.writeTChan requestChan updCrdsRequest
     return (GameState
-             [(Just p1Dir, Just p1Crds), (Just p2Dir, Just newP2Crds)]
-             , PlayerState (Just 2) (Just p2Dir) $ Just newP2Crds
+             [(Just p1Dir, Just p1Crds, p1Shot), (Just p2Dir, Just newP2Crds, p2Shot)]
+             , PlayerState (Just 2) (Just p2Dir) (Just newP2Crds)
+             )
+
+wrapP2ShotWithIO ::
+  TChan GameState.PlayerRequests
+  -> Direction
+  -> Direction
+  -> Coordinates
+  -> Coordinates
+  -> Maybe ShotData
+  -> ShotData
+  -> PlayerRequests
+  -> IO SystemState
+wrapP2ShotWithIO requestChan p1Dir p2Dir p1Crds p2Crds p1Shot p2Shot shootRequest = do
+    _ <- STM.atomically $ STM.writeTChan requestChan shootRequest
+    return (GameState
+             [(Just p1Dir, Just p1Crds, p1Shot), (Just p2Dir, Just p2Crds, Just p2Shot)]
+             , PlayerState (Just 2) (Just p2Dir) (Just p2Crds)
              )
 
 handleDirectionEvent ::
@@ -110,23 +175,21 @@ handleDirectionEvent ::
   -> SystemState
 handleDirectionEvent
   requestChan
-  (GameState [(Just p1Dir, Just p1Crds), (Just p2Dir, Just p2Crds)], playerState)
-  playerInd
-  dirTransf = case playerInd of
-    1 -> do
-        let newP1Dir = dirTransf p1Dir
-        let updDirsRequest = GameState.UpdateDirection (UpdateDirectionData 1 newP1Dir)
-        unsafePerformIO $ wrapP1DirectionWithIO requestChan newP1Dir p2Dir p1Crds p2Crds updDirsRequest
+  (GameState [(Just p1Dir, Just p1Crds, p1Shot), (Just p2Dir, Just p2Crds, p2Shot)], _)
+  1 dirTransf = do
+    let newP1Dir = dirTransf p1Dir
+    let updDirsRequest = GameState.UpdateDirection (UpdateDirectionData 1 newP1Dir)
+    unsafePerformIO $ wrapP1DirectionWithIO
+      requestChan newP1Dir p2Dir p1Crds p2Crds p1Shot p2Shot updDirsRequest
 
-    2 -> do
-        let newP2Dir = dirTransf p2Dir
-        let updDirsRequest = GameState.UpdateDirection (UpdateDirectionData 2 newP2Dir)
-        unsafePerformIO $ wrapP2DirectionWithIO requestChan p1Dir newP2Dir p1Crds p2Crds updDirsRequest
-
-    _ -> curState
-
-    where
-        curState = (GameState [(Just p1Dir, Just p1Crds), (Just p2Dir, Just p2Crds)], playerState)
+handleDirectionEvent
+  requestChan
+  (GameState [(Just p1Dir, Just p1Crds, p1Shot), (Just p2Dir, Just p2Crds, p2Shot)], _)
+  2 dirTransf = do
+    let newP2Dir = dirTransf p2Dir
+    let updDirsRequest = GameState.UpdateDirection (UpdateDirectionData 2 newP2Dir)
+    unsafePerformIO $ wrapP2DirectionWithIO
+      requestChan p1Dir newP2Dir p1Crds p2Crds p1Shot p2Shot updDirsRequest
 
 handleDirectionEvent _ state _ _ = state
 
@@ -138,27 +201,61 @@ handleMovementEvent ::
   -> SystemState
 handleMovementEvent
   requestChan
-  (GameState [(Just p1Dir, Just p1Crds), (Just p2Dir, Just p2Crds)], playerState)
-  playerInd
-  crdTransf = case playerInd of
-    1 -> do
-        let newP1Crds = crdTransf p1Crds
-        if beyoundBorders newP1Crds then curState else do
-          let updCrdsRequest = GameState.UpdatePosition (UpdatePositionData 1 newP1Crds)
-          unsafePerformIO $ wrapP1MovementWithIO requestChan p1Dir p2Dir newP1Crds p2Crds updCrdsRequest
+  (GameState [(Just p1Dir, Just p1Crds, p1Shot), (Just p2Dir, Just p2Crds, p2Shot)], playerState)
+  1 crdTransf = if beyoundBorders newP1Crds then curState else nextState
+  where
+    curState = (GameState [(Just p1Dir, Just p1Crds, p1Shot), (Just p2Dir, Just p2Crds, p2Shot)], playerState)
+    newP1Crds = crdTransf p1Crds
+    updCrdsRequest = GameState.UpdatePosition (UpdatePositionData 1 newP1Crds)
+    nextState = unsafePerformIO $ wrapP1MovementWithIO
+      requestChan p1Dir p2Dir newP1Crds p2Crds p1Shot p2Shot updCrdsRequest
 
-    2 -> do
-        let newP2Crds = crdTransf p2Crds
-        if beyoundBorders newP2Crds then curState else do
-          let updCrdsRequest = GameState.UpdatePosition (UpdatePositionData 2 newP2Crds)
-          unsafePerformIO $ wrapP2MovementWithIO requestChan p1Dir p2Dir p1Crds newP2Crds updCrdsRequest
-
-    _ -> curState
-
-    where
-        curState = (GameState [(Just p1Dir, Just p1Crds), (Just p2Dir, Just p2Crds)], playerState)
+handleMovementEvent
+  requestChan
+  (GameState [(Just p1Dir, Just p1Crds, p1Shot), (Just p2Dir, Just p2Crds, p2Shot)], playerState)
+  2 crdTransf = if beyoundBorders newP2Crds then curState else nextState
+  where
+    curState = (GameState [(Just p1Dir, Just p1Crds, p1Shot), (Just p2Dir, Just p2Crds, p2Shot)], playerState)
+    newP2Crds = crdTransf p2Crds
+    updCrdsRequest = GameState.UpdatePosition (UpdatePositionData 2 newP2Crds)
+    nextState = unsafePerformIO $ wrapP2MovementWithIO
+      requestChan p1Dir p2Dir p1Crds newP2Crds p1Shot p2Shot updCrdsRequest
 
 handleMovementEvent _ state _ _ = state
+
+handleShootEvent ::
+  TChan GameState.PlayerRequests
+  -> SystemState
+  -> Word8
+  -> (Maybe ShotData -> ShotData)
+  -> SystemState
+handleShootEvent
+  requestChan
+  (GameState [(Just p1Dir, Just p1Crds, p1Shot), (Just p2Dir, Just p2Crds, p2Shot)], playerState)
+  1 shotTransf = do
+    let (ShotData _ crds _) = newP1Shot
+    if beyoundBorders crds then noShotState else nextState
+  where
+    noShotState = (GameState [(Just p1Dir, Just p1Crds, Nothing), (Just p2Dir, Just p2Crds, p2Shot)], playerState)
+    newP1Shot = shotTransf p1Shot
+    shootRequest = GameState.Shoot newP1Shot
+    nextState = unsafePerformIO $ wrapP1ShotWithIO
+      requestChan p1Dir p2Dir p1Crds p2Crds newP1Shot p2Shot shootRequest
+
+handleShootEvent
+  requestChan
+  (GameState [(Just p1Dir, Just p1Crds, p1Shot), (Just p2Dir, Just p2Crds, p2Shot)], playerState)
+  2 shotTransf = do
+    let (ShotData _ crds _) = newP2Shot
+    if beyoundBorders crds then noShotState else nextState
+  where
+    noShotState = (GameState [(Just p1Dir, Just p1Crds, p1Shot), (Just p2Dir, Just p2Crds, Nothing)], playerState)
+    newP2Shot = shotTransf p2Shot
+    shootRequest = GameState.Shoot newP2Shot
+    nextState = unsafePerformIO $ wrapP2ShotWithIO
+      requestChan p1Dir p2Dir p1Crds p2Crds p1Shot newP2Shot shootRequest
+
+handleShootEvent _ state _ _ = state
 
 onLeftRightEvent :: SpecialKey -> Direction -> Direction
 onLeftRightEvent KeyRight GameState.UpDir    = GameState.RightDir
@@ -275,11 +372,126 @@ handleGameEvents
       playerInd
       $ onLeftRightEvent KeyLeft
 
+------------------------------------------ On Shoot pressed ------------------------------------------
+handleGameEvents
+  requestChan
+  (EventKey (SpecialKey KeySpace) Up _ _)
+  (gameState, PlayerState (Just playerInd) dir crds) =
+    handleShootEvent
+      requestChan
+      (gameState, PlayerState (Just playerInd) dir crds)
+      playerInd
+      newShotOnNothing
+  where
+    newShotOnNothing mbShotData = case mbShotData of
+      Nothing       -> ShotData playerInd (Maybe.fromJust crds) (Maybe.fromJust dir)
+      Just shotData -> shotData
+
 handleGameEvents _ _ state = state
 
-updateGame :: TChan SystemState -> Float -> SystemState -> SystemState
-updateGame eventQueue _ state = -- реализация этой штуки под капотом слишком ленива, чтобы использовать обычный readTChan
-    Maybe.fromMaybe state $ unsafePerformIO $ STM.atomically $ STM.tryReadTChan eventQueue
+updateShot :: Maybe ShotData -> Maybe ShotData
+updateShot Nothing = Nothing
+updateShot (Just (ShotData playerInd (x, y) dir)) =
+  if beyoundBorders (x, y) then Nothing
+  else case dir of
+    GameState.UpDir    -> Just (ShotData playerInd (x, y + 5) dir)
+    GameState.DownDir  -> Just (ShotData playerInd (x, y - 5) dir)
+    GameState.RightDir -> Just (ShotData playerInd (x + 5, y) dir)
+    GameState.LeftDir  -> Just (ShotData playerInd (x - 5, y) dir)
+
+updateGame :: TChan SystemState -> TChan GameState.PlayerRequests -> Float -> SystemState -> SystemState
+updateGame eventQueue requestChan _ (GameState [(p1Dir, p1Crds, p1Shot), (p2Dir, p2Crds, p2Shot)], PlayerState (Just 1) dir crds) =
+  case fetchedState of
+    (GameState [(fP1Dir, fP1Crds, fP1Shot), (fP2Dir, fP2Crds, fP2Shot)], _) -> do
+      let newP1Shot = updateShot fP1Shot
+      let newP2Shot = updateShot fP2Shot
+      updateGame1_ requestChan fetchedState fP1Dir fP1Crds newP1Shot fP2Dir fP2Crds newP2Shot
+    state -> state
+
+  where
+    curPlayerState = PlayerState (Just 1) dir crds
+    curState = (GameState [(p1Dir, p1Crds, p1Shot), (p2Dir, p2Crds, p2Shot)], curPlayerState)
+    fetchedState = Maybe.fromMaybe curState $ unsafePerformIO $ STM.atomically $ STM.tryReadTChan eventQueue
+
+updateGame eventQueue requestChan _ (GameState [(p1Dir, p1Crds, p1Shot), (p2Dir, p2Crds, p2Shot)], PlayerState (Just 2) dir crds) =
+  case fetchedState of
+    (GameState [(fP1Dir, fP1Crds, fP1Shot), (fP2Dir, fP2Crds, fP2Shot)], _) -> do
+      let newP1Shot = updateShot fP1Shot
+      let newP2Shot = updateShot fP2Shot
+      updateGame2_ requestChan fetchedState fP1Dir fP1Crds newP1Shot fP2Dir fP2Crds newP2Shot
+    state -> state
+
+  where
+    curPlayerState = PlayerState (Just 2) dir crds
+    curState = (GameState [(p1Dir, p1Crds, p1Shot), (p2Dir, p2Crds, p2Shot)], curPlayerState)
+    fetchedState = Maybe.fromMaybe curState $ unsafePerformIO $ STM.atomically $ STM.tryReadTChan eventQueue
+
+updateGame eventQueue _ _ curState =
+  Maybe.fromMaybe curState $ unsafePerformIO $ STM.atomically $ STM.tryReadTChan eventQueue
+
+updateGame1_ ::
+  TChan GameState.PlayerRequests
+  -> SystemState
+  -> Maybe Direction
+  -> Maybe Coordinates
+  -> Maybe ShotData
+  -> Maybe Direction
+  -> Maybe Coordinates
+  -> Maybe ShotData
+  -> SystemState
+updateGame1_
+  requestChan _
+  (Just fP1Dir)
+  (Just fP1Crds)
+  (Just newP1Shot)
+  (Just fP2Dir)
+  (Just fP2Crds)
+  newP2Shot = unsafePerformIO
+    $ wrapP1ShotWithIO requestChan fP1Dir fP2Dir fP1Crds fP2Crds newP1Shot newP2Shot
+    $ GameState.Shoot newP1Shot
+
+updateGame1_
+  _ (_, curPlayerState)
+  fP1Dir
+  fP1Crds
+  Nothing
+  fP2Dir
+  fP2Crds
+  newP2Shot = (GameState [(fP1Dir, fP1Crds, Nothing), (fP2Dir, fP2Crds, newP2Shot)], curPlayerState)
+
+updateGame1_ _ fetchedState _ _ _ _ _ _ = fetchedState
+
+updateGame2_ ::
+  TChan GameState.PlayerRequests
+  -> SystemState
+  -> Maybe Direction
+  -> Maybe Coordinates
+  -> Maybe ShotData
+  -> Maybe Direction
+  -> Maybe Coordinates
+  -> Maybe ShotData
+  -> SystemState
+updateGame2_
+  requestChan _
+  (Just fP1Dir)
+  (Just fP1Crds)
+  newP1Shot
+  (Just fP2Dir)
+  (Just fP2Crds)
+  (Just newP2Shot) = unsafePerformIO
+    $ wrapP2ShotWithIO requestChan fP1Dir fP2Dir fP1Crds fP2Crds newP1Shot newP2Shot
+    $ GameState.Shoot newP2Shot
+
+updateGame2_
+  _ (_, curPlayerState)
+  fP1Dir
+  fP1Crds
+  newP1Shot
+  fP2Dir
+  fP2Crds
+  Nothing = (GameState [(fP1Dir, fP1Crds, newP1Shot), (fP2Dir, fP2Crds, Nothing)], curPlayerState)
+
+updateGame2_ _ fetchedState _ _ _ _ _ _ = fetchedState
 
 launchGame :: TChan SystemState -> TChan GameState.PlayerRequests -> Picture -> Picture -> IO ()
 launchGame eventQueue requestChan firstPlayerPic secondPlayerPic = Gloss.play
@@ -289,7 +501,7 @@ launchGame eventQueue requestChan firstPlayerPic secondPlayerPic = Gloss.play
   initialSystemState
   (renderGame firstPlayerPic secondPlayerPic)
   (handleGameEvents requestChan)
-  (updateGame eventQueue)
+  (updateGame eventQueue requestChan)
 
 main :: IO ()
 main = do

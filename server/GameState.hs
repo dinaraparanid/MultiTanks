@@ -14,7 +14,7 @@ data UpdatePositionData = UpdatePositionData Word8 Coordinates
 data UpdateDirectionData = UpdateDirectionData Word8 Direction
   deriving (Eq, Show)
 
-data ShotData = ShotData Word8 (Coordinates, Coordinates)
+data ShotData = ShotData Word8 Coordinates Direction
   deriving (Eq, Show)
 
 data PlayerRequests = Connect
@@ -36,7 +36,7 @@ data ServerRequests = AssignFirstPlayer
                     | Shot ShotData | Kill Word8
   deriving (Eq, Show)
 
-newtype GameState = GameState [(SockAddr, Direction, Coordinates)]
+newtype GameState = GameState [(SockAddr, Direction, Coordinates, Maybe ShotData)]
   deriving (Eq, Show)
 
 firstPlayerInitPosition, secondPlayerInitPosition :: (Int, Int)

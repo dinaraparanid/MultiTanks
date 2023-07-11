@@ -44,6 +44,7 @@ handleServerRequest ::
   SystemState
   -> Maybe GameState.ServerRequests
   -> SystemState
+--------------------------------- Assign player ---------------------------------
 handleServerRequest (gameState, PlayerState Nothing Nothing Nothing) (Just GameState.AssignFirstPlayer) =
   (gameState, PlayerState (Just 1) Nothing Nothing)
 handleServerRequest state (Just GameState.AssignFirstPlayer) = state
@@ -52,46 +53,86 @@ handleServerRequest (gameState, PlayerState Nothing Nothing Nothing) (Just GameS
   (gameState, PlayerState (Just 2) Nothing Nothing)
 handleServerRequest state (Just GameState.AssignSecondPlayer) = state
 
+--------------------------------- Change position ---------------------------------
 handleServerRequest
-  (GameState [(p1Dir, _), (p2Dir, _)], PlayerState (Just 1) _ _)
+  (GameState [(p1Dir, _, p1Shot), (p2Dir, _, p2Shot)], PlayerState (Just 1) _ _)
   (Just (GameState.ChangePosition (ChangePositionData p1Crds p2Crds))) =
-    (GameState [(p1Dir, Just p1Crds), (p2Dir, Just p2Crds)], PlayerState (Just 1) p1Dir $ Just p1Crds)
-handleServerRequest
-  (GameState [(p1Dir, _), (p2Dir, _)], PlayerState (Just 2) _ _)
-  (Just (GameState.ChangePosition (ChangePositionData p1Crds p2Crds))) =
-    (GameState [(p1Dir, Just p1Crds), (p2Dir, Just p2Crds)], PlayerState (Just 2) p2Dir $ Just p2Crds)
+    (GameState
+      [(p1Dir, Just p1Crds, p1Shot), (p2Dir, Just p2Crds, p2Shot)]
+      , PlayerState (Just 1) p1Dir (Just p1Crds)
+      )
 
+handleServerRequest
+  (GameState [(p1Dir, _, p1Shot), (p2Dir, _, p2Shot)], PlayerState (Just 2) _ _)
+  (Just (GameState.ChangePosition (ChangePositionData p1Crds p2Crds))) =
+    (GameState
+      [(p1Dir, Just p1Crds, p1Shot), (p2Dir, Just p2Crds, p2Shot)]
+      , PlayerState (Just 2) p2Dir (Just p2Crds)
+      )
+
+--------------------------------- Change direction ---------------------------------
 handleServerRequest
   (GameState [], PlayerState (Just 1) _ _)
   (Just (GameState.ChangeDirection (ChangeDirectionData p1Dir p2Dir))) =
-    (GameState [(Just p1Dir, Nothing), (Just p2Dir, Nothing)], PlayerState (Just 1) (Just p1Dir) Nothing)
+    (GameState
+      [(Just p1Dir, Nothing, Nothing), (Just p2Dir, Nothing, Nothing)]
+      , PlayerState (Just 1) (Just p1Dir) Nothing
+      )
+
 handleServerRequest
   (GameState [], PlayerState (Just 2) _ _)
   (Just (GameState.ChangeDirection (ChangeDirectionData p1Dir p2Dir))) =
-    (GameState [(Just p1Dir, Nothing), (Just p2Dir, Nothing)], PlayerState (Just 2) (Just p2Dir) Nothing)
-handleServerRequest
-  (GameState [(_, p1Crds), (_, p2Crds)], PlayerState (Just 1) _ _)
-  (Just (GameState.ChangeDirection (ChangeDirectionData p1Dir p2Dir))) =
-    (GameState [(Just p1Dir, p1Crds), (Just p2Dir, p2Crds)], PlayerState (Just 1) (Just p1Dir) p1Crds)
-handleServerRequest
-  (GameState [(_, p1Crds), (_, p2Crds)], PlayerState (Just 2) _ _)
-  (Just (GameState.ChangeDirection (ChangeDirectionData p1Dir p2Dir))) =
-    (GameState [(Just p1Dir, p1Crds), (Just p2Dir, p2Crds)], PlayerState (Just 2) (Just p2Dir) p2Crds)
+    (GameState
+      [(Just p1Dir, Nothing, Nothing), (Just p2Dir, Nothing, Nothing)]
+      , PlayerState (Just 2) (Just p2Dir) Nothing
+      )
 
-handleServerRequest state (Just (GameState.Shot _)) = state
+handleServerRequest
+  (GameState [(_, p1Crds, p1Shot), (_, p2Crds, p2Shot)], PlayerState (Just 1) _ _)
+  (Just (GameState.ChangeDirection (ChangeDirectionData p1Dir p2Dir))) =
+    (GameState
+      [(Just p1Dir, p1Crds, p1Shot), (Just p2Dir, p2Crds, p2Shot)]
+      , PlayerState (Just 1) (Just p1Dir) p1Crds
+      )
 
+handleServerRequest
+  (GameState [(_, p1Crds, p1Shot), (_, p2Crds, p2Shot)], PlayerState (Just 2) _ _)
+  (Just (GameState.ChangeDirection (ChangeDirectionData p1Dir p2Dir))) =
+    (GameState
+      [(Just p1Dir, p1Crds, p1Shot), (Just p2Dir, p2Crds, p2Shot)]
+      , PlayerState (Just 2) (Just p2Dir) p2Crds
+      )
+
+--------------------------------- Shot ---------------------------------
+handleServerRequest
+  (GameState [(p1Dir, p1Crds, _), (p2Dir, p2Crds, p2Shot)], PlayerState (Just 1) _ _)
+  (Just (GameState.Shot (ShotData 1 crds dir))) =
+    (GameState
+      [(p1Dir, p1Crds, Just (ShotData 1 crds dir)), (p2Dir, p2Crds, p2Shot)]
+      , PlayerState (Just 1) p1Dir p1Crds
+      )
+
+handleServerRequest
+  (GameState [(p1Dir, p1Crds, p1Shot), (p2Dir, p2Crds, _)], PlayerState (Just 2) _ _)
+  (Just (GameState.Shot (ShotData 2 crds dir))) =
+    (GameState
+      [(p1Dir, p1Crds, p1Shot), (p2Dir, p2Crds, Just (ShotData 1 crds dir))]
+      , PlayerState (Just 2) p1Dir p1Crds
+      )
+
+--------------------------------- Kill ---------------------------------
 handleServerRequest _ (Just (GameState.Kill _)) = initialSystemState
 
 handleServerRequest state _ = state
 
 sendRequest :: Socket -> SockAddr -> GameState.PlayerRequests -> IO ()
 sendRequest sock addr GameState.Connect = sendConnect sock addr
-sendRequest sock addr (GameState.Shoot (ShotData playerInd (start, end))) =
-  sendShoot sock addr playerInd start end
 sendRequest sock addr (GameState.UpdatePosition (UpdatePositionData playerInd coords)) =
   sendUpdatePosition sock addr playerInd coords
 sendRequest sock addr (GameState.UpdateDirection (UpdateDirectionData playerInd dir)) =
   sendUpdateDirection sock addr playerInd dir
+sendRequest sock addr (GameState.Shoot (ShotData playerInd curPos dir)) =
+  sendShoot sock addr playerInd curPos dir
 
 sendConnect :: Socket -> SockAddr -> IO ()
 sendConnect sock addr = sendAllTo sock (Bytes.pack [0]) addr >> putStrLn "Connect is sent"
@@ -113,15 +154,14 @@ sendUpdateDirection sock addr playerInd dir = do
   let msg = commandBytes <> playerIndBytes <> dirBytes
   sendAllTo sock msg addr >> putStrLn "New direction is sent"
 
-sendShoot :: Socket -> SockAddr -> Word8 -> (Int, Int) -> (Int, Int) -> IO ()
-sendShoot sock addr playerInd (xStart, yStart) (xEnd, yEnd) = do
+sendShoot :: Socket -> SockAddr -> Word8 -> Coordinates -> Direction -> IO ()
+sendShoot sock addr playerInd (x, y) dir = do
   let commandBytes = Bytes.pack [3]
   let playerIndBytes = Bytes.pack [playerInd]
-  let xStartBytes = Utils.intToByteString xStart
-  let yStartBytes = Utils.intToByteString yStart
-  let xEndBytes = Utils.intToByteString xEnd
-  let yEndBytes = Utils.intToByteString yEnd
-  let msg = commandBytes <> playerIndBytes <> xStartBytes <> yStartBytes <> xEndBytes <> yEndBytes
+  let xBytes = Utils.intToByteString x
+  let yBytes = Utils.intToByteString y
+  let dirBytes = Bytes.pack [Utils.directionToByte dir]
+  let msg = commandBytes <> playerIndBytes <> xBytes <> yBytes <> dirBytes
   sendAllTo sock msg addr >> putStrLn "Shoot is sent"
 
 launchClientEventLoop :: TChan SystemState -> Socket -> SystemState -> IO ()
