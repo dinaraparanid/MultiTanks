@@ -122,7 +122,10 @@ handleServerRequest
       )
 
 --------------------------------- Kill ---------------------------------
-handleServerRequest _ (Just (GameState.Kill _)) = initialSystemState
+handleServerRequest (GameState [_, p2Data], pd) (Just (GameState.Kill 1)) =
+  (GameState [(Nothing, Nothing, Nothing), p2Data], pd)
+handleServerRequest (GameState [p1Data, _], pd) (Just (GameState.Kill 2)) =
+  (GameState [p1Data, (Nothing, Nothing, Nothing)], pd)
 
 handleServerRequest state _ = state
 

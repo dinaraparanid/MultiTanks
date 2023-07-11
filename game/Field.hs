@@ -141,3 +141,15 @@ waitPlayer2Field = pictures [
     gameField
     , color green $ scale 0.5 0.5 $ translate (-400) 500 $ text "Wait Player 2"
     ]
+
+player1WonField :: Picture
+player1WonField = pictures [
+    gameField
+    , color green $ scale 0.5 0.5 $ translate (-400) 500 $ text "Player 1 Won!"
+    ]
+
+player2WonField :: Picture
+player2WonField = pictures [
+    gameField
+    , color green $ scale 0.5 0.5 $ translate (-400) 500 $ text "Player 2 Won!"
+    ]

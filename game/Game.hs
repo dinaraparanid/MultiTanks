@@ -52,6 +52,8 @@ translatedShotPic _ = blank
 renderGame :: Picture -> Picture -> SystemState -> Picture
 renderGame _ _ (GameState [], _)                                   = waitPlayer2Field
 renderGame _ _ (GameState [_], _)                                  = waitPlayer2Field
+renderGame _ _ (GameState [_, (Nothing, Nothing, Nothing)], _)     = player1WonField
+renderGame _ _ (GameState [(Nothing, Nothing, Nothing), _], _)     = player2WonField
 renderGame
   firstPlayerPic
   secondPlayerPic
