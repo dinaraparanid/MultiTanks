@@ -19,16 +19,22 @@ import           GameState     (Coordinates)
 
 makeWorld "World" [''Physics, ''Camera]
 
-------------------------borders----------------------------
+------------------------ Borders ----------------------------
 
+-- | Stores left-down and right-up
+--   coordinates of  rectangular zones,
+--   occupied by borders
 type BorderPolygon = (Coordinates, Coordinates)
 
+-- | Checks wheather position is inside of the border zone
 inBorder :: Coordinates -> BorderPolygon -> Bool
 inBorder (x, y) ((xd, yd), (xu, yu)) = x >= xd && x <= xu && y >= yd && y <= yu
 
+-- | Main game borders or end of the map
 mainBorder :: Picture
 mainBorder = Polygon [(310, 210), (-310, 210), (-310, -210), (310, -210)]
 
+-- | Checks if position is outside of the level
 beyoundMainBorder :: Coordinates -> Bool
 beyoundMainBorder (x, y) = x <= -310 || x >= 310 || y <= -210 || y >= 210
 
@@ -86,10 +92,12 @@ borderPolygons = [border1Polygon
                 , border6Polygon
                 ]
 
+-- | Checks wheather position is legal in terms of borders
 beyoundBorders :: Coordinates -> Bool
 beyoundBorders crds = beyoundMainBorder crds || any (\brd -> crds `inBorder` brd) borderPolygons
 
------------------------light tiles-------------------------
+----------------------- Light Tiles -------------------------
+
 tile1, tile4, tile5, tile6, tile7 :: Picture
 tile1 = Polygon [(-200, 200), (-300, 200), (-300, 0), (-200, 0)]
 tile4 = Polygon [(-100, -100), (-300, -100), (-300, -200), (-100, -200)]
@@ -97,7 +105,8 @@ tile5 = Polygon [(100, 100), (100, 200), (0, 200), (0, 100)]
 tile6 = Polygon [(100, 0), (-100, 0), (-100, -100), (100, -100)]
 tile7 = Polygon [(200, -100), (200, -200), (0, -200), (0, -100)]
 
------------------------dark tiles--------------------------
+----------------------- Dark Tiles --------------------------
+
 tile2, tile3, tile8, tile9, tile10 :: Picture
 tile2 = Polygon [(0, 0), (0, 200), (-200, 200), (-200, 0)]
 tile3 = Polygon [(-100, 0), (-300, 0), (-300, -100), (-100, -100)]
@@ -113,6 +122,8 @@ lightColor = color $ light $ light $ light black
 
 borderColor :: Picture -> Picture
 borderColor =  color $ light black
+
+----------------------- Fields --------------------------
 
 mainWindow :: Display
 mainWindow = InWindow "MultiTanks" (640, 640) (500, 250)
