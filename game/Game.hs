@@ -28,12 +28,16 @@ fps = 60
 translatedPlayerPic :: Maybe Coordinates -> Maybe Direction -> Picture -> Picture
 translatedPlayerPic (Just (x, y)) (Just GameState.UpDir) pic =
   translate (fromIntegral x) (fromIntegral y) pic
+
 translatedPlayerPic (Just (x, y)) (Just GameState.DownDir) pic =
   translate (fromIntegral x) (fromIntegral y) $ rotate 180.0 pic
+
 translatedPlayerPic (Just (x, y)) (Just GameState.RightDir) pic =
   translate (fromIntegral x) (fromIntegral y) $ rotate 90.0 pic
+
 translatedPlayerPic (Just (x, y)) (Just GameState.LeftDir) pic =
   translate (fromIntegral x) (fromIntegral y) $ rotate 270.0 pic
+
 translatedPlayerPic _ _ pic = pic
 
 -- | Constructs shot picture from the given data.
@@ -66,10 +70,10 @@ renderGame ::
   -> Picture     -- ^ second player picture (already rotated and translated)
   -> SystemState -- ^ current system state
   -> Picture
-renderGame _ _ (GameState [], _)                                   = waitPlayer2Field
-renderGame _ _ (GameState [_], _)                                  = waitPlayer2Field
-renderGame _ _ (GameState [_, (Nothing, Nothing, Nothing)], _)     = player1WonField
-renderGame _ _ (GameState [(Nothing, Nothing, Nothing), _], _)     = player2WonField
+renderGame _ _ (GameState [], _)                               = waitPlayer2Field
+renderGame _ _ (GameState [_], _)                              = waitPlayer2Field
+renderGame _ _ (GameState [_, (Nothing, Nothing, Nothing)], _) = player1WonField
+renderGame _ _ (GameState [(Nothing, Nothing, Nothing), _], _) = player2WonField
 renderGame
   firstPlayerPic
   secondPlayerPic
@@ -100,11 +104,13 @@ wrapP1DirectionWithIO ::
   -> PlayerRequests              -- ^ update player's direction request to the server
   -> IO SystemState
 wrapP1DirectionWithIO requestChan curSysStateHolder newP1Dir p2Dir p1Crds p2Crds p1Shot p2Shot updDirRequest = do
-    _ <- STM.atomically $ STM.writeTChan requestChan updDirRequest
-    _ <- STM.atomically $ STM.writeTVar curSysStateHolder systemState
+    STM.atomically $ STM.writeTChan requestChan updDirRequest
+    STM.atomically $ STM.writeTVar curSysStateHolder systemState
     return systemState
     where
-      newDirectionGameState = GameState [(Just newP1Dir, Just p1Crds, p1Shot), (Just p2Dir, Just p2Crds, p2Shot)]
+      firstPlayerState = (Just newP1Dir, Just p1Crds, p1Shot)
+      secondPlayerState = (Just p2Dir, Just p2Crds, p2Shot)
+      newDirectionGameState = GameState [firstPlayerState, secondPlayerState]
       newDirectionPlayerState = PlayerState (Just 1) (Just newP1Dir) (Just p1Crds)
       systemState = (newDirectionGameState, newDirectionPlayerState)
 
@@ -123,11 +129,13 @@ wrapP1MovementWithIO ::
   -> PlayerRequests              -- ^ update player's movement request to the server
   -> IO SystemState
 wrapP1MovementWithIO requestChan curSysStateHolder p1Dir p2Dir newP1Crds p2Crds p1Shot p2Shot updCrdsRequest = do
-    _ <- STM.atomically $ STM.writeTChan requestChan updCrdsRequest
-    _ <- STM.atomically $ STM.writeTVar curSysStateHolder systemState
+    STM.atomically $ STM.writeTChan requestChan updCrdsRequest
+    STM.atomically $ STM.writeTVar curSysStateHolder systemState
     return systemState
     where
-      newMovementGameState = GameState [(Just p1Dir, Just newP1Crds, p1Shot), (Just p2Dir, Just p2Crds, p2Shot)]
+      firstPlayerState = (Just p1Dir, Just newP1Crds, p1Shot)
+      secondPlayerState = (Just p2Dir, Just p2Crds, p2Shot)
+      newMovementGameState = GameState [firstPlayerState, secondPlayerState]
       newMovementPlayerState = PlayerState (Just 1) (Just p1Dir) (Just newP1Crds)
       systemState = (newMovementGameState, newMovementPlayerState)
 
@@ -146,11 +154,13 @@ wrapP1ShotWithIO ::
   -> PlayerRequests              -- ^ player's shoot state request to the server
   -> IO SystemState
 wrapP1ShotWithIO requestChan curSysStateHolder p1Dir p2Dir p1Crds p2Crds p1Shot p2Shot shootRequest = do
-    _ <- STM.atomically $ STM.writeTChan requestChan shootRequest
-    _ <- STM.atomically $ STM.writeTVar curSysStateHolder systemState
+    STM.atomically $ STM.writeTChan requestChan shootRequest
+    STM.atomically $ STM.writeTVar curSysStateHolder systemState
     return systemState
     where
-      newShotGameState = GameState [(Just p1Dir, Just p1Crds, Just p1Shot), (Just p2Dir, Just p2Crds, p2Shot)]
+      firstPlayerState = (Just p1Dir, Just p1Crds, Just p1Shot)
+      secondPlayerState = (Just p2Dir, Just p2Crds, p2Shot)
+      newShotGameState = GameState [firstPlayerState, secondPlayerState]
       newShotPlayerState = PlayerState (Just 1) (Just p1Dir) (Just p1Crds)
       systemState = (newShotGameState, newShotPlayerState)
 
@@ -168,11 +178,13 @@ wrapP1CancelShotWithIO ::
   -> PlayerRequests              -- ^ cancel shoot request to the server
   -> IO SystemState
 wrapP1CancelShotWithIO requestChan curSysStateHolder p1Dir p2Dir p1Crds p2Crds p2Shot shootRequest = do
-    _ <- STM.atomically $ STM.writeTChan requestChan shootRequest
-    _ <- STM.atomically $ STM.writeTVar curSysStateHolder systemState
+    STM.atomically $ STM.writeTChan requestChan shootRequest
+    STM.atomically $ STM.writeTVar curSysStateHolder systemState
     return systemState
     where
-      newCancelShotGameState = GameState [(Just p1Dir, Just p1Crds, Nothing), (Just p2Dir, Just p2Crds, p2Shot)]
+      firstPlayerState = (Just p1Dir, Just p1Crds, Nothing)
+      secondPlayerState = (Just p2Dir, Just p2Crds, p2Shot)
+      newCancelShotGameState = GameState [firstPlayerState, secondPlayerState]
       newCancelShotPlayerState = PlayerState (Just 1) (Just p1Dir) (Just p1Crds)
       systemState = (newCancelShotGameState, newCancelShotPlayerState)
 
@@ -191,11 +203,13 @@ wrapP2DirectionWithIO ::
   -> PlayerRequests              -- ^ update player's direction request to the server
   -> IO SystemState
 wrapP2DirectionWithIO requestChan curSysStateHolder p1Dir newP2Dir p1Crds p2Crds p1Shot p2Shot updDirRequest = do
-    _ <- STM.atomically $ STM.writeTChan requestChan updDirRequest
-    _ <- STM.atomically $ STM.writeTVar curSysStateHolder systemState
+    STM.atomically $ STM.writeTChan requestChan updDirRequest
+    STM.atomically $ STM.writeTVar curSysStateHolder systemState
     return systemState
     where
-      newDirectionGameState = GameState [(Just p1Dir, Just p1Crds, p1Shot), (Just newP2Dir, Just p2Crds, p2Shot)]
+      firstPlayerState = (Just p1Dir, Just p1Crds, p1Shot)
+      secondPlayerState = (Just newP2Dir, Just p2Crds, p2Shot)
+      newDirectionGameState = GameState [firstPlayerState, secondPlayerState]
       newDirectionPlayerState = PlayerState (Just 2) (Just newP2Dir) (Just p2Crds)
       systemState = (newDirectionGameState, newDirectionPlayerState)
 
@@ -214,11 +228,13 @@ wrapP2MovementWithIO ::
   -> PlayerRequests              -- ^ update player's movement request to the server
   -> IO SystemState
 wrapP2MovementWithIO requestChan curSysStateHolder p1Dir p2Dir p1Crds newP2Crds p1Shot p2Shot updCrdsRequest = do
-    _ <- STM.atomically $ STM.writeTChan requestChan updCrdsRequest
-    _ <- STM.atomically $ STM.writeTVar curSysStateHolder systemState
+    STM.atomically $ STM.writeTChan requestChan updCrdsRequest
+    STM.atomically $ STM.writeTVar curSysStateHolder systemState
     return systemState
     where
-      newMovementGameState = GameState [(Just p1Dir, Just p1Crds, p1Shot), (Just p2Dir, Just newP2Crds, p2Shot)]
+      firstPlayerState = (Just p1Dir, Just p1Crds, p1Shot)
+      secondPlayerState = (Just p2Dir, Just newP2Crds, p2Shot)
+      newMovementGameState = GameState [firstPlayerState, secondPlayerState]
       newMovementPlayerState = PlayerState (Just 2) (Just p2Dir) (Just newP2Crds)
       systemState = (newMovementGameState, newMovementPlayerState)
 
@@ -237,11 +253,13 @@ wrapP2ShotWithIO ::
   -> PlayerRequests              -- ^ player's shoot state request to the server
   -> IO SystemState
 wrapP2ShotWithIO requestChan curSysStateHolder p1Dir p2Dir p1Crds p2Crds p1Shot p2Shot shootRequest = do
-    _ <- STM.atomically $ STM.writeTChan requestChan shootRequest
-    _ <- STM.atomically $ STM.writeTVar curSysStateHolder systemState
+    STM.atomically $ STM.writeTChan requestChan shootRequest
+    STM.atomically $ STM.writeTVar curSysStateHolder systemState
     return systemState
     where
-      newShotGameState = GameState [(Just p1Dir, Just p1Crds, p1Shot), (Just p2Dir, Just p2Crds, Just p2Shot)]
+      firstPlayerState = (Just p1Dir, Just p1Crds, p1Shot)
+      secondPlayerState = (Just p2Dir, Just p2Crds, Just p2Shot)
+      newShotGameState = GameState [firstPlayerState, secondPlayerState]
       newShotPlayerState = PlayerState (Just 2) (Just p2Dir) (Just p2Crds)
       systemState = (newShotGameState, newShotPlayerState)
 
@@ -260,11 +278,13 @@ wrapP2CancelShotWithIO ::
   -> PlayerRequests              -- ^ player's shoot state request to the server
   -> IO SystemState
 wrapP2CancelShotWithIO requestChan curSysStateHolder p1Dir p2Dir p1Crds p2Crds p1Shot shootRequest = do
-    _ <- STM.atomically $ STM.writeTChan requestChan shootRequest
-    _ <- STM.atomically $ STM.writeTVar curSysStateHolder systemState
+    STM.atomically $ STM.writeTChan requestChan shootRequest
+    STM.atomically $ STM.writeTVar curSysStateHolder systemState
     return systemState
     where
-      newCancelShotGameState = GameState [(Just p1Dir, Just p1Crds, p1Shot), (Just p2Dir, Just p2Crds, Nothing)]
+      firstPlayerState = (Just p1Dir, Just p1Crds, p1Shot)
+      secondPlayerState = (Just p2Dir, Just p2Crds, Nothing)
+      newCancelShotGameState = GameState [firstPlayerState, secondPlayerState]
       newCancelShotPlayerState = PlayerState (Just 2) (Just p2Dir) (Just p2Crds)
       systemState = (newCancelShotGameState, newCancelShotPlayerState)
 
@@ -325,7 +345,9 @@ handleMovementEvent
   (GameState [(Just p1Dir, Just p1Crds, p1Shot), (Just p2Dir, Just p2Crds, p2Shot)], playerState)
   1 crdTransf = if beyoundBorders newP1Crds then curState else nextState
   where
-    curState = (GameState [(Just p1Dir, Just p1Crds, p1Shot), (Just p2Dir, Just p2Crds, p2Shot)], playerState)
+    firstPlayerState = (Just p1Dir, Just p1Crds, p1Shot)
+    secondPlayerState = (Just p2Dir, Just p2Crds, p2Shot)
+    curState = (GameState [firstPlayerState, secondPlayerState], playerState)
     newP1Crds = crdTransf p1Crds
     updCrdsRequest = GameState.UpdatePosition $ UpdatePositionData 1 newP1Crds
     nextState = unsafePerformIO $ wrapP1MovementWithIO -- О причинах использования unsafePerformIO читать выше
@@ -337,7 +359,9 @@ handleMovementEvent
   (GameState [(Just p1Dir, Just p1Crds, p1Shot), (Just p2Dir, Just p2Crds, p2Shot)], playerState)
   2 crdTransf = if beyoundBorders newP2Crds then curState else nextState
   where
-    curState = (GameState [(Just p1Dir, Just p1Crds, p1Shot), (Just p2Dir, Just p2Crds, p2Shot)], playerState)
+    firstPlayerState = (Just p1Dir, Just p1Crds, p1Shot)
+    secondPlayerState = (Just p2Dir, Just p2Crds, p2Shot)
+    curState = (GameState [firstPlayerState, secondPlayerState], playerState)
     newP2Crds = crdTransf p2Crds
     updCrdsRequest = GameState.UpdatePosition $ UpdatePositionData 2 newP2Crds
     nextState = unsafePerformIO $ wrapP2MovementWithIO -- О причинах использования unsafePerformIO читать выше
@@ -358,14 +382,14 @@ handleShootEvent
   requestChan
   curSysStateHolder
   (GameState [(Just p1Dir, Just p1Crds, p1Shot), (Just p2Dir, Just p2Crds, p2Shot)], _)
-  1 shotTransf = do
-    let (ShotData _ crds _) = newP1Shot
-    if beyoundBorders crds then noShotState else shootState
+  1 shotTransf = if beyoundBorders crds then noShotState else shootState
   where
     cancelShootRequest = GameState.CancelShoot 1
     noShotState = unsafePerformIO $ wrapP1CancelShotWithIO
       requestChan curSysStateHolder p1Dir p2Dir p1Crds p2Crds p2Shot cancelShootRequest
+
     newP1Shot = shotTransf p1Shot
+    (ShotData _ crds _) = newP1Shot
     shootRequest = GameState.Shoot newP1Shot
     shootState = unsafePerformIO $ wrapP1ShotWithIO -- О причинах использования unsafePerformIO читать выше
       requestChan curSysStateHolder p1Dir p2Dir p1Crds p2Crds newP1Shot p2Shot shootRequest
@@ -374,14 +398,14 @@ handleShootEvent
   requestChan
   curSysStateHolder
   (GameState [(Just p1Dir, Just p1Crds, p1Shot), (Just p2Dir, Just p2Crds, p2Shot)], _)
-  2 shotTransf = do
-    let (ShotData _ crds _) = newP2Shot
-    if beyoundBorders crds then noShotState else nextState
+  2 shotTransf = if beyoundBorders crds then noShotState else nextState
   where
     cancelShootRequest = GameState.CancelShoot 2
     noShotState = unsafePerformIO $ wrapP2CancelShotWithIO
       requestChan curSysStateHolder p1Dir p2Dir p1Crds p2Crds p1Shot cancelShootRequest
+
     newP2Shot = shotTransf p2Shot
+    (ShotData _ crds _) = newP2Shot
     shootRequest = GameState.Shoot newP2Shot
     nextState = unsafePerformIO $ wrapP2ShotWithIO -- О причинах использования unsafePerformIO читать выше
       requestChan curSysStateHolder p1Dir p2Dir p1Crds p2Crds p1Shot newP2Shot shootRequest
@@ -418,11 +442,11 @@ handleGameEvents
   (EventKey (SpecialKey KeyUp) Up _ _)
   (gameState, PlayerState (Just playerInd) (Just GameState.UpDir) crds) =
     handleMovementEvent
-    requestChan
-    curSysStateHolder
-    (gameState, PlayerState (Just playerInd) (Just GameState.UpDir) crds)
-    playerInd
-    (\(x, y) -> (x, y + 5))
+      requestChan
+      curSysStateHolder
+      (gameState, PlayerState (Just playerInd) (Just GameState.UpDir) crds)
+      playerInd
+      $ \(x, y) -> (x, y + 5)
 
 handleGameEvents
   requestChan
@@ -430,11 +454,11 @@ handleGameEvents
   (EventKey (SpecialKey KeyUp) Up _ _)
   (gameState, PlayerState (Just playerInd) (Just GameState.DownDir) crds) =
     handleMovementEvent
-    requestChan
-    curSysStateHolder
-    (gameState, PlayerState (Just playerInd) (Just GameState.DownDir) crds)
-    playerInd
-    (\(x, y) -> (x, y - 5))
+      requestChan
+      curSysStateHolder
+      (gameState, PlayerState (Just playerInd) (Just GameState.DownDir) crds)
+      playerInd
+      $ \(x, y) -> (x, y - 5)
 
 handleGameEvents
   requestChan
@@ -446,7 +470,7 @@ handleGameEvents
       curSysStateHolder
       (gameState, PlayerState (Just playerInd) (Just GameState.RightDir) crds)
       playerInd
-      (\(x, y) -> (x + 5, y))
+      $ \(x, y) -> (x + 5, y)
 
 handleGameEvents
   requestChan
@@ -458,7 +482,7 @@ handleGameEvents
       curSysStateHolder
       (gameState, PlayerState (Just playerInd) (Just GameState.LeftDir) crds)
       playerInd
-      (\(x, y) -> (x - 5, y))
+      $ \(x, y) -> (x - 5, y)
 
 ------------------------------------------ On Down pressed ------------------------------------------
 handleGameEvents
@@ -471,7 +495,7 @@ handleGameEvents
       curSysStateHolder
       (gameState, PlayerState (Just playerInd) (Just GameState.UpDir) crds)
       playerInd
-      (\(x, y) -> (x, y - 2))
+      $ \(x, y) -> (x, y - 2)
 
 handleGameEvents
   requestChan
@@ -483,7 +507,7 @@ handleGameEvents
       curSysStateHolder
       (gameState, PlayerState (Just playerInd) (Just GameState.DownDir) crds)
       playerInd
-      (\(x, y) -> (x, y + 2))
+      $ \(x, y) -> (x, y + 2)
 
 handleGameEvents
   requestChan
@@ -495,7 +519,7 @@ handleGameEvents
       curSysStateHolder
       (gameState, PlayerState (Just playerInd) (Just GameState.RightDir) crds)
       playerInd
-      (\(x, y) -> (x - 2, y))
+      $ \(x, y) -> (x - 2, y)
 
 handleGameEvents
   requestChan
@@ -507,7 +531,7 @@ handleGameEvents
       curSysStateHolder
       (gameState, PlayerState (Just playerInd) (Just GameState.LeftDir) crds)
       playerInd
-      (\(x, y) -> (x + 2, y))
+      $ \(x, y) -> (x + 2, y)
 
 ------------------------------------------ On Left/Right pressed ------------------------------------------
 handleGameEvents

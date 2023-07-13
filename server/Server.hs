@@ -56,7 +56,9 @@ handleUpdatePositionRequest
   (GameState [(p1Addr, p1Dir, _, p1Shot), (p2Addr, p2Dir, p2Coords, p2Shot)])
   (UpdatePositionData 1 newP1Coords) = result
   where
-    changePosState = GameState [(p1Addr, p1Dir, newP1Coords, p1Shot), (p2Addr, p2Dir, p2Coords, p2Shot)]
+    firstPlayerState = (p1Addr, p1Dir, newP1Coords, p1Shot)
+    secondPlayerState = (p2Addr, p2Dir, p2Coords, p2Shot)
+    changePosState = GameState [firstPlayerState, secondPlayerState]
     changePosRequest = Just $ GameState.ChangePosition $ UpdatePositionData 1 newP1Coords
     result = Left (changePosState, changePosRequest)
 
@@ -64,7 +66,9 @@ handleUpdatePositionRequest
   (GameState [(p1Addr, p1Dir, p1Coords, p1Shot), (p2Addr, p2Dir, _, p2Shot)])
   (UpdatePositionData 2 newP2Coords) = result
   where
-    changePosState = GameState [(p1Addr, p1Dir, p1Coords, p1Shot), (p2Addr, p2Dir, newP2Coords, p2Shot)]
+    firstPlayerState = (p1Addr, p1Dir, p1Coords, p1Shot)
+    secondPlayerState = (p2Addr, p2Dir, newP2Coords, p2Shot)
+    changePosState = GameState [firstPlayerState, secondPlayerState]
     changePosRequest = Just $ GameState.ChangePosition $ UpdatePositionData 2 newP2Coords
     result = Left (changePosState, changePosRequest)
 
@@ -76,7 +80,9 @@ handleUpdateDirectionRequest
   (GameState [(p1Addr, _, p1Coords, p1Shot), (p2Addr, p2Dir, p2Coords, p2Shot)])
   (UpdateDirectionData 1 newP1Dir) = result
   where
-    changeDirState = GameState [(p1Addr, newP1Dir, p1Coords, p1Shot), (p2Addr, p2Dir, p2Coords, p2Shot)]
+    firstPlayerState = (p1Addr, newP1Dir, p1Coords, p1Shot)
+    secondPlayerState = (p2Addr, p2Dir, p2Coords, p2Shot)
+    changeDirState = GameState [firstPlayerState, secondPlayerState]
     changeDirRequest = Just $ GameState.ChangeDirection $ UpdateDirectionData 1 newP1Dir
     result = Left (changeDirState, changeDirRequest)
 
@@ -84,7 +90,9 @@ handleUpdateDirectionRequest
   (GameState [(p1Addr, p1Dir, p1Coords, p1Shot), (p2Addr, _, p2Coords, p2Shot)])
   (UpdateDirectionData 2 newP2Dir) = result
   where
-    changeDirState = GameState [(p1Addr, p1Dir, p1Coords, p1Shot), (p2Addr, newP2Dir, p2Coords, p2Shot)]
+    firstPlayerState = (p1Addr, p1Dir, p1Coords, p1Shot)
+    secondPlayerState = (p2Addr, newP2Dir, p2Coords, p2Shot)
+    changeDirState = GameState [firstPlayerState, secondPlayerState]
     changeDirRequest = Just $ GameState.ChangeDirection $ UpdateDirectionData 2 newP2Dir
     result = Left (changeDirState, changeDirRequest)
 
@@ -102,13 +110,15 @@ handlePlayerRequest state _ Nothing = Left (state, Nothing)
 ----------------------------------------- Player connections -----------------------------------------
 handlePlayerRequest (GameState []) addr (Just GameState.Connect) = result
   where
-    firstPlayerFoundState = GameState [(addr, firstPlayerInitDirection, firstPlayerInitPosition, Nothing)]
+    firstPlayerState = (addr, firstPlayerInitDirection, firstPlayerInitPosition, Nothing)
+    firstPlayerFoundState = GameState [firstPlayerState]
     assignFirstPlayerRequest = Just GameState.AssignFirstPlayer
     result = Left (firstPlayerFoundState, assignFirstPlayerRequest)
 
 handlePlayerRequest (GameState [player1]) addr (Just GameState.Connect) = result
   where
-    secondPlayerFoundState = GameState [player1, (addr, secondPlayerInitDirection, secondPlayerInitPosition, Nothing)]
+    secondPlayerState = (addr, secondPlayerInitDirection, secondPlayerInitPosition, Nothing)
+    secondPlayerFoundState = GameState [player1, secondPlayerState]
     assignSecondPlayerRequest = Just GameState.AssignSecondPlayer
     result = Left (secondPlayerFoundState, assignSecondPlayerRequest)
 
@@ -128,12 +138,14 @@ handlePlayerRequest
     if abs (p1X - x) < 25 && abs (p1Y - y) < 25 then gameOverState else shotResultState
   where
     p1Crds = (p1X, p1Y)
-    curState = GameState [(p1Addr, p1Dir, p1Crds, p1Shot), (p2Addr, p2Dir, p2Crds, p2Shot)]
+    firstPlayerState = (p1Addr, p1Dir, p1Crds, p1Shot)
+    secondPlayerState = (p2Addr, p2Dir, p2Crds, p2Shot)
+    curState = GameState [firstPlayerState, secondPlayerState]
     gameOverState = Left (curState, Just $ GameState.Kill 1)
     crds = (x, y)
     newP2Shot = ShotData 2 crds dir
     shotRequest = Just (GameState.Shot newP2Shot)
-    shotState = GameState [(p1Addr, p1Dir, p1Crds, p1Shot), (p2Addr, p2Dir, p2Crds, Just newP2Shot)]
+    shotState = GameState [firstPlayerState, (p2Addr, p2Dir, p2Crds, Just newP2Shot)]
     shotResultState = Left (shotState, shotRequest)
 
 handlePlayerRequest
@@ -142,12 +154,14 @@ handlePlayerRequest
     if abs (p2X - x) < 25 && abs (p2Y - y) < 25 then gameOverState else shotResultState
   where
     p2Crds = (p2X, p2Y)
-    curState = GameState [(p1Addr, p1Dir, p1Crds, p1Shot), (p2Addr, p2Dir, p2Crds, p2Shot)]
+    firstPlayerState = (p1Addr, p1Dir, p1Crds, p1Shot)
+    secondPlayerState = (p2Addr, p2Dir, p2Crds, p2Shot)
+    curState = GameState [firstPlayerState, secondPlayerState]
     gameOverState = Left (curState, Just $ GameState.Kill 2)
     crds = (x, y)
     newP1Shot = ShotData 1 crds dir
     shotRequest = Just (GameState.Shot newP1Shot)
-    shotState = GameState [(p1Addr, p1Dir, p1Crds, Just newP1Shot), (p2Addr, p2Dir, p2Crds, p2Shot)]
+    shotState = GameState [(p1Addr, p1Dir, p1Crds, Just newP1Shot), secondPlayerState]
     shotResultState = Left (shotState, shotRequest)
 
 handlePlayerRequest
@@ -155,7 +169,9 @@ handlePlayerRequest
   (Just (GameState.CancelShoot 1)) = result
   where
     removeShotRequest = Just $ GameState.RemoveShoot 1
-    shotCanceledState = GameState [(p1Addr, p1Dir, p1Crds, Nothing), (p2Addr, p2Dir, p2Crds, p2Shot)]
+    firstPlayerState = (p1Addr, p1Dir, p1Crds, Nothing)
+    secondPlayerState = (p2Addr, p2Dir, p2Crds, p2Shot)
+    shotCanceledState = GameState [firstPlayerState, secondPlayerState]
     result = Left (shotCanceledState, removeShotRequest)
 
 handlePlayerRequest
@@ -163,7 +179,9 @@ handlePlayerRequest
   (Just (GameState.CancelShoot 2)) = result
   where
     removeShotRequest = Just $ GameState.RemoveShoot 2
-    shotCanceledState = GameState [(p1Addr, p1Dir, p1Crds, p1Shot), (p2Addr, p2Dir, p2Crds, Nothing)]
+    firstPlayerState = (p1Addr, p1Dir, p1Crds, p1Shot)
+    secondPlayerState = (p2Addr, p2Dir, p2Crds, Nothing)
+    shotCanceledState = GameState [firstPlayerState, secondPlayerState]
     result = Left (shotCanceledState, removeShotRequest)
 
 handlePlayerRequest state _ _ = Left (state, Nothing)
@@ -188,27 +206,19 @@ sendRequest
 
 sendRequest
   sock
-  (GameState [(_, _, _, _), (p2Addr, _, _, _)])
-  (Just (GameState.ChangePosition (UpdatePositionData 1 crds))) =
-    sendChangePosition sock p2Addr 1 crds
+  (GameState [(p1Addr, _, _, _), (p2Addr, _, _, _)])
+  (Just (GameState.ChangePosition (UpdatePositionData playerInd crds))) = case playerInd of
+    1 -> sendChangePosition sock p2Addr 1 crds
+    2 -> sendChangePosition sock p1Addr 2 crds
+    _ -> return ()
 
 sendRequest
   sock
-  (GameState [(p1Addr, _, _, _), (_, _, _, _)])
-  (Just (GameState.ChangePosition (UpdatePositionData 2 crds))) =
-    sendChangePosition sock p1Addr 2 crds
-
-sendRequest
-  sock
-  (GameState [(_, _, _, _), (p2Addr, _, _, _)])
-  (Just (GameState.ChangeDirection (UpdateDirectionData 1 dir))) = do
-    sendChangeDirection sock p2Addr 1 dir
-
-sendRequest
-  sock
-  (GameState [(p1Addr, _, _, _), (_, _, _, _)])
-  (Just (GameState.ChangeDirection (UpdateDirectionData 2 dir))) = do
-    sendChangeDirection sock p1Addr 2 dir
+  (GameState [(p1Addr, _, _, _), (p2Addr, _, _, _)])
+  (Just (GameState.ChangeDirection (UpdateDirectionData playerInd dir))) = case playerInd of
+    1 -> sendChangeDirection sock p2Addr 1 dir
+    2 -> sendChangeDirection sock p1Addr 2 dir
+    _ -> return ()
 
 sendRequest
   sock
@@ -340,19 +350,23 @@ launchGameEventLoop sock state = do
   Async.withAsync (handleRequest byteStr addr) Async.wait
 
   where
-    handleRequest byteStr addr = case handlePlayerRequest state addr $ parsePlayerRequest $ Bytes.unpack byteStr of
+    playerRequest byteStr = parsePlayerRequest $ Bytes.unpack byteStr
+    handleResult byteStr addr = handlePlayerRequest state addr $ playerRequest byteStr
+    restart = launchGameEventLoop sock initialGameState
+    continue = launchGameEventLoop sock
+    handleRequest byteStr addr = case handleResult byteStr addr of
       Left (newState, request) -> do
         print newState
         print request
         sendRequest sock newState request
 
         case request of
-          Just (GameState.Kill _) -> launchGameEventLoop sock initialGameState
-          _                       -> launchGameEventLoop sock newState
+          Just (GameState.Kill _) -> restart
+          _                       -> continue newState
 
       Right err -> do
         putStrLn err
-        launchGameEventLoop sock state
+        continue state
 
 -- | Binds socket to the server and launches it on http://0.0.0.0:8080
 launchUDPServerForever :: IO ()

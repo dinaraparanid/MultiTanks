@@ -1,7 +1,7 @@
 module Client where
 
 import           Control.Concurrent.Async  as Async
-import           Control.Concurrent.STM
+import           Control.Concurrent.STM    as STM
 import           Data.ByteString           as Bytes
 import           Data.Word                 (Word8)
 import           GameState
@@ -56,18 +56,18 @@ handleServerRequest ::
 --------------------------------- Assign players ---------------------------------
 handleServerRequest (gameState, PlayerState Nothing Nothing Nothing) (Just GameState.AssignFirstPlayer) =
   (gameState, PlayerState (Just 1) Nothing Nothing)
-handleServerRequest state (Just GameState.AssignFirstPlayer) = state
 
 handleServerRequest (gameState, PlayerState Nothing Nothing Nothing) (Just GameState.AssignSecondPlayer) =
   (gameState, PlayerState (Just 2) Nothing Nothing)
-handleServerRequest state (Just GameState.AssignSecondPlayer) = state
 
 --------------------------------- Change position ---------------------------------
 handleServerRequest
   (GameState [(p1Dir, p1Crds, p1Shot), (p2Dir, _, p2Shot)], PlayerState (Just 1) _ _)
   (Just (GameState.ChangePosition (UpdatePositionData 2 p2Crds))) = systemState
   where
-    changePosGameState = GameState [(p1Dir, p1Crds, p1Shot), (p2Dir, Just p2Crds, p2Shot)]
+    firstPlayerState = (p1Dir, p1Crds, p1Shot)
+    secondPlayerState = (p2Dir, Just p2Crds, p2Shot)
+    changePosGameState = GameState [firstPlayerState, secondPlayerState]
     changePosPlayerState = PlayerState (Just 1) p1Dir p1Crds
     systemState = (changePosGameState, changePosPlayerState)
 
@@ -75,7 +75,9 @@ handleServerRequest
   (GameState [(p1Dir, _, p1Shot), (p2Dir, p2Crds, p2Shot)], PlayerState (Just 2) _ _)
   (Just (GameState.ChangePosition (UpdatePositionData 1 p1Crds))) = systemState
   where
-    changePosGameState = GameState [(p1Dir, Just p1Crds, p1Shot), (p2Dir, p2Crds, p2Shot)]
+    firstPlayerState = (p1Dir, Just p1Crds, p1Shot)
+    secondPlayerState = (p2Dir, p2Crds, p2Shot)
+    changePosGameState = GameState [firstPlayerState, secondPlayerState]
     changePosPlayerState = PlayerState (Just 2) p2Dir p2Crds
     systemState = (changePosGameState, changePosPlayerState)
 
@@ -110,7 +112,9 @@ handleServerRequest
   (GameState [(p1Dir, p1Crds, p1Shot), (_, p2Crds, p2Shot)], PlayerState (Just 1) _ _)
   (Just (GameState.ChangeDirection (UpdateDirectionData 2 p2Dir))) = systemState
   where
-    changeDirGameState = GameState [(p1Dir, p1Crds, p1Shot), (Just p2Dir, p2Crds, p2Shot)]
+    firstPlayerState = (p1Dir, p1Crds, p1Shot)
+    secondPlayerState = (Just p2Dir, p2Crds, p2Shot)
+    changeDirGameState = GameState [firstPlayerState, secondPlayerState]
     changeDirPlayerState = PlayerState (Just 1) p1Dir p1Crds
     systemState = (changeDirGameState, changeDirPlayerState)
 
@@ -118,7 +122,9 @@ handleServerRequest
   (GameState [(_, p1Crds, p1Shot), (p2Dir, p2Crds, p2Shot)], PlayerState (Just 2) _ _)
   (Just (GameState.ChangeDirection (UpdateDirectionData 1 p1Dir))) = systemState
   where
-    changeDirGameState = GameState [(Just p1Dir, p1Crds, p1Shot), (p2Dir, p2Crds, p2Shot)]
+    firstPlayerState = (Just p1Dir, p1Crds, p1Shot)
+    secondPlayerState = (p2Dir, p2Crds, p2Shot)
+    changeDirGameState = GameState [firstPlayerState, secondPlayerState]
     changeDirPlayerState = PlayerState (Just 2) p2Dir p2Crds
     systemState = (changeDirGameState, changeDirPlayerState)
 
@@ -127,7 +133,9 @@ handleServerRequest
   (GameState [(p1Dir, p1Crds, p1Shot), (p2Dir, p2Crds, _)], PlayerState (Just 1) _ _)
   (Just (GameState.Shot (ShotData 2 crds dir))) = systemState
   where
-    shotGameState = GameState [(p1Dir, p1Crds, p1Shot), (p2Dir, p2Crds, Just (ShotData 2 crds dir))]
+    firstPlayerState = (p1Dir, p1Crds, p1Shot)
+    secondPlayerState = (p2Dir, p2Crds, Just (ShotData 2 crds dir))
+    shotGameState = GameState [firstPlayerState, secondPlayerState]
     shotPlayerState = PlayerState (Just 1) p1Dir p1Crds
     systemState = (shotGameState, shotPlayerState)
 
@@ -135,7 +143,9 @@ handleServerRequest
   (GameState [(p1Dir, p1Crds, _), (p2Dir, p2Crds, p2Shot)], PlayerState (Just 2) _ _)
   (Just (GameState.Shot (ShotData 1 crds dir))) = systemState
   where
-    shotGameState = GameState [(p1Dir, p1Crds, Just (ShotData 1 crds dir)), (p2Dir, p2Crds, p2Shot)]
+    firstPlayerState = (p1Dir, p1Crds, Just (ShotData 1 crds dir))
+    secondPlayerState = (p2Dir, p2Crds, p2Shot)
+    shotGameState = GameState [firstPlayerState, secondPlayerState]
     shotPlayerState = PlayerState (Just 2) p1Dir p1Crds
     systemState = (shotGameState, shotPlayerState)
 
@@ -144,7 +154,9 @@ handleServerRequest
   (GameState [(p1Dir, p1Crds, p1Shot), (p2Dir, p2Crds, _)], PlayerState (Just 1) _ _)
   (Just (GameState.RemoveShoot 2)) = systemState
   where
-    shotGameState = GameState [(p1Dir, p1Crds, p1Shot), (p2Dir, p2Crds, Nothing)]
+    firstPlayerState = (p1Dir, p1Crds, p1Shot)
+    secondPlayerState = (p2Dir, p2Crds, Nothing)
+    shotGameState = GameState [firstPlayerState, secondPlayerState]
     shotPlayerState = PlayerState (Just 1) p1Dir p1Crds
     systemState = (shotGameState, shotPlayerState)
 
@@ -152,13 +164,16 @@ handleServerRequest
   (GameState [(p1Dir, p1Crds, _), (p2Dir, p2Crds, p2Shot)], PlayerState (Just 2) _ _)
   (Just (GameState.RemoveShoot 1)) = systemState
   where
-    shotGameState = GameState [(p1Dir, p1Crds, Nothing), (p2Dir, p2Crds, p2Shot)]
+    firstPlayerState = (p1Dir, p1Crds, Nothing)
+    secondPlayerState = (p2Dir, p2Crds, p2Shot)
+    shotGameState = GameState [firstPlayerState, secondPlayerState]
     shotPlayerState = PlayerState (Just 2) p1Dir p1Crds
     systemState = (shotGameState, shotPlayerState)
 
 --------------------------------- Kill ---------------------------------
 handleServerRequest (GameState [_, p2Data], pd) (Just (GameState.Kill 1)) =
   (GameState [(Nothing, Nothing, Nothing), p2Data], pd)
+
 handleServerRequest (GameState [p1Data, _], pd) (Just (GameState.Kill 2)) =
   (GameState [p1Data, (Nothing, Nothing, Nothing)], pd)
 
@@ -169,12 +184,16 @@ handleServerRequest state _ = state
 -- | Sends request to the server by the given address
 sendRequest :: Socket -> SockAddr -> GameState.PlayerRequests -> IO ()
 sendRequest sock addr GameState.Connect = sendConnect sock addr
+
 sendRequest sock addr (GameState.UpdatePosition (UpdatePositionData playerInd coords)) =
   sendUpdatePosition sock addr playerInd coords
+
 sendRequest sock addr (GameState.UpdateDirection (UpdateDirectionData playerInd dir)) =
   sendUpdateDirection sock addr playerInd dir
+
 sendRequest sock addr (GameState.Shoot (ShotData playerInd curPos dir)) =
   sendShoot sock addr playerInd curPos dir
+
 sendRequest sock addr (GameState.CancelShoot playerInd) = sendCancelShoot sock addr playerInd
 
 -- | Sends connect state to the server.
@@ -254,14 +273,14 @@ launchClientEventLoop ::
   -> IO ()
 launchClientEventLoop gameEventQueue curSysStateHolder sock = do
   response <- NetworkBytes.recvFrom sock 4096
-  state <- readTVarIO curSysStateHolder
+  state <- STM.readTVarIO curSysStateHolder
 
   let (byteStr, _) = response
   print $ Bytes.unpack byteStr
 
   let newState = handleServerRequest state $ parseServerRequest $ Bytes.unpack byteStr
-  _ <- atomically $ writeTChan gameEventQueue newState
-  _ <- atomically $ writeTVar curSysStateHolder newState
+  STM.atomically $ STM.writeTChan gameEventQueue newState
+  STM.atomically $ STM.writeTVar curSysStateHolder newState
   print newState
 
   case newState of
@@ -276,7 +295,7 @@ launchRequestReceiver ::
   -> SockAddr                    -- ^ server address
   -> IO ()
 launchRequestReceiver requestChan sock addr = do
-  request <- atomically $ readTChan requestChan
+  request <- STM.atomically $ STM.readTChan requestChan
   print request
   sendRequest sock addr request
   launchRequestReceiver requestChan sock addr
