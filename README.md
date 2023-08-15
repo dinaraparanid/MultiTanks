@@ -42,7 +42,7 @@ Game starts when two players are connected
 # **Stack**
 
 <ul>
-    <li>Network (UDP client)</li>
+    <li>Network (UDP server + clients)</li>
     <li>Bytestring + Bytestring conversion</li>
     <li>Apecs + Gloss</li>
     <li>Async</li>
