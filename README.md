@@ -1,14 +1,14 @@
-# Multi Tanks
+# **Multi Tanks**
 
 2D Tanks multiplayer game based on Apecs (Gloss) graphics library. Client/Server side implementation is based on UDP connection with network library
 
-# Gameplay
+# **Gameplay**
 
 Game requires two players to launch. When both players are found, it immediately starts.
 Both players try to shoot their opponent (by pressing "Space" button) as fast as possible in order to survive and win.
 Game finishes when either first or second player is killed.
 
-# Setup
+# **Setup**
 
 Before the start, make sure that you have [installed Haskell](https://www.haskell.org/downloads/).
 
@@ -35,6 +35,20 @@ stack exec runghc Game
 
 Game starts when two players are connected
 
-# Preview
+# **Preview**
 
 ![preview](MultiTanks_Preview.gif)
+
+# **Stack**
+
+<ul>
+    <li>Network (UDP client)</li>
+    <li>Bytestring + Bytestring conversion</li>
+    <li>Apecs + Gloss</li>
+    <li>Async</li>
+    <li>STM (atomic transcactions)</li>
+</ul>
+
+# **License**
+
+*GNU Public License V 3.0*
